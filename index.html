@@ -134,9 +134,9 @@
         textarea { resize: none; height: 38px; min-height: 38px; overflow: hidden; }
         textarea.expanded { height: 200px; min-height: 200px; overflow-y: auto; }
 
-        /* UA 组合框 */
-        .ua-container { display: flex; gap: 8px; }
-        .ua-container select { width: 110px; flex-shrink: 0; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin-top: 4px; }
+        .checkbox-group input[type="checkbox"] { width: auto; cursor: pointer; accent-color: var(--accent-color); }
+        .checkbox-group label { font-size: 13px; font-weight: 600; color: var(--text-main); cursor: pointer; }
 
         .btn-row { display: flex; gap: 10px; }
         .btn-primary {
@@ -234,23 +234,9 @@
                 <input type="text" id="licenseKey" placeholder="kid:key">
             </div>
             
-            <div class="input-group">
-                <div class="input-header">
-                    <label>User-Agent (伪装头)</label>
-                </div>
-                <div class="ua-container">
-                    <select id="uaPresets" onchange="updateUAInput()">
-                        <option value="">默认 (当前)</option>
-                        <option value="Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1">iPhone</option>
-                        <option value="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.164 Mobile Safari/537.36">Android</option>
-                        <option value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36">Win Chrome</option>
-                        <option value="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15">Mac Safari</option>
-                        <option value="okhttp/4.12.0">OkHttp</option>
-                        <option value="Lavf/60.3.100">FFmpeg/Lavf</option>
-                        <option value="VLC/3.0.20 LibVLC/3.0.20">VLC Player</option>
-                    </select>
-                    <input type="text" id="userAgentInput" placeholder="允许手动修改或粘贴自定义 UA" style="flex:1">
-                </div>
+            <div class="checkbox-group" onclick="document.getElementById('forceHQ').click()">
+                <input type="checkbox" id="forceHQ" checked onclick="event.stopPropagation()">
+                <label for="forceHQ">默认加载最高画质 (关闭自适应)</label>
             </div>
             
             <button class="btn-primary" onclick="loadAndPlay()">初始化播放</button>
@@ -304,11 +290,7 @@
             }
         }
 
-        // --- UA 及 UI 交互 ---
-        function updateUAInput() {
-            document.getElementById('userAgentInput').value = document.getElementById('uaPresets').value;
-        }
-
+        // --- 文本框交互 ---
         function toggleTextarea() {
             const ta = document.getElementById('importArea');
             const btn = document.getElementById('expandBtn');
@@ -384,36 +366,32 @@
             playlistData = [];
             const lines = text.split('\n').map(l => l.trim());
             let currentItem = { name: '', url: '', key: '', group: '未分组频道' };
-            let currentGroup = '未分组频道'; // 用于记录 TXT 格式的当前分类
+            let currentGroup = '未分组频道'; 
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
                 if (!line) continue;
 
-                // 识别 TXT 格式的分类头部 (例如: 央视直播,#genre#)
                 if (line.includes('#genre#')) {
                     currentGroup = line.split(',')[0].trim();
                     continue;
                 }
 
                 if (line.startsWith('#EXTINF')) {
-                    // 提取名称
                     let nameMatch = line.match(/,(.+)$/);
                     currentItem.name = nameMatch ? nameMatch[1].trim() : '未命名频道';
                     
-                    // 提取 M3U 格式的分类 (group-title)
                     let groupMatch = line.match(/group-title="([^"]+)"/);
                     if (groupMatch) {
                         currentItem.group = groupMatch[1].trim();
                     } else {
-                        currentItem.group = currentGroup; // 如果没匹配到，使用当前大类
+                        currentItem.group = currentGroup; 
                     }
                 } else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
                     currentItem.key = line.split('=')[1].trim();
                 } else if (line.startsWith('http')) {
                     currentItem.url = line;
                     
-                    // TXT 格式单行解析 (名称,url)
                     if (line.includes(',') && !line.startsWith('http')) {
                        let parts = line.split(',');
                        if(parts.length >= 2 && parts[1].startsWith('http')) {
@@ -422,13 +400,10 @@
                        }
                     }
 
-                    // 纯文本容错：抓上一行当名字
                     if (!currentItem.name && i > 0 && !lines[i-1].startsWith('http') && !lines[i-1].startsWith('#')) {
-                        // 检查上一行是否是 "名字,url" 格式，如果不是，才作为独立名字
                         if(!lines[i-1].includes(',')) currentItem.name = lines[i-1];
                     }
                     
-                    // 纯文本容错：抓下一行当 Key
                     if (!currentItem.key && i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
                         currentItem.key = lines[i+1];
                         i++; 
@@ -438,7 +413,6 @@
                     if (!currentItem.group) currentItem.group = currentGroup;
                     
                     playlistData.push({...currentItem});
-                    // 重置，但保留当前的 TXT 大类状态
                     currentItem = { name: '', url: '', key: '', group: currentGroup };
                 }
             }
@@ -464,32 +438,28 @@
             section.classList.add('show');
             count.innerText = playlistData.length + ' 频道';
             
-            // 按 group 对数据进行二次整理
             const groupedData = {};
             playlistData.forEach((item, originalIndex) => {
                 if (!groupedData[item.group]) groupedData[item.group] = [];
                 groupedData[item.group].push({...item, originalIndex});
             });
 
-            // 渲染 DOM
             for (let groupName in groupedData) {
                 const groupDiv = document.createElement('div');
                 groupDiv.className = 'playlist-group';
                 
-                // 分组标题栏
                 const titleDiv = document.createElement('div');
                 titleDiv.className = 'group-title';
                 titleDiv.innerText = `${groupName} (${groupedData[groupName].length})`;
                 titleDiv.onclick = function() { toggleGroup(this); };
                 
-                // 频道列表容器
                 const itemsDiv = document.createElement('div');
                 itemsDiv.className = 'group-items';
                 
                 groupedData[groupName].forEach(item => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'playlist-item';
-                    itemDiv.setAttribute('data-index', item.originalIndex); // 记录真实索引
+                    itemDiv.setAttribute('data-index', item.originalIndex); 
                     itemDiv.innerHTML = `<div class="item-name">${item.name}</div><div class="item-url">${item.url}</div>`;
                     itemDiv.onclick = () => playFromList(item.originalIndex);
                     itemsDiv.appendChild(itemDiv);
@@ -502,11 +472,9 @@
         }
 
         function playFromList(index) {
-            // 清除旧的高亮
             const items = document.querySelectorAll('.playlist-item');
             items.forEach(el => el.classList.remove('active'));
             
-            // 添加新高亮
             const activeItem = document.querySelector(`.playlist-item[data-index="${index}"]`);
             if (activeItem) activeItem.classList.add('active');
 
@@ -518,21 +486,13 @@
             loadAndPlay();
         }
 
-        // --- 初始化播放器及网络拦截 ---
+        // --- 初始化播放器 ---
         async function initApp() {
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
                 const video = document.getElementById('videoPlayer');
                 player = new shaka.Player(video);
                 
-                // 注册底层网络请求拦截器，用于注入 User-Agent
-                player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                    const customUA = document.getElementById('userAgentInput').value.trim();
-                    if (customUA) {
-                        request.headers['User-Agent'] = customUA;
-                    }
-                });
-
                 player.addEventListener('error', onErrorEvent);
                 player.addEventListener('trackschanged', updateTrackMenus);
                 addLog("Shaka Player 初始化就绪", "success");
@@ -543,7 +503,7 @@
 
         function onErrorEvent(event) {
             const error = event.detail;
-            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效/系统拒绝`, "error");
+            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效或浏览器不支持解密该编码 (通常在刚开始播或切换画质时发生)`, "error");
             else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 跨域限制(CORS)或403`, "error");
             else addLog(`错误: ${error.code}`, "error");
         }
@@ -618,7 +578,7 @@
         async function loadAndPlay() {
             const url = document.getElementById('streamUrl').value.trim();
             const keyInput = document.getElementById('licenseKey').value.trim();
-            const uaInput = document.getElementById('userAgentInput').value.trim();
+            const forceHQ = document.getElementById('forceHQ').checked;
             const videoEl = document.getElementById('videoPlayer');
             
             if (!url) { addLog("禁止操作: 流地址为空", "error"); return; }
@@ -629,18 +589,42 @@
                 if (parts.length === 2) clearKeysConfig[parts[0]] = parts[1];
             }
 
-            player.configure({ drm: { clearKeys: clearKeysConfig }, abr: { enabled: true } });
+            // 添加针对直播流卡顿的容错底层配置
+            player.configure({ 
+                drm: { clearKeys: clearKeysConfig }, 
+                abr: { enabled: true },
+                streaming: {
+                    jumpLargeGaps: true,          // 允许跳过直播流中的时间戳断层
+                    ignoreTextStreamFailures: true // 忽略字幕流加载失败防止卡死
+                }
+            });
 
             try {
                 if (updateTimer) clearInterval(updateTimer);
                 addLog("请求 Manifest 文件...", "info");
-                if(uaInput) addLog("注入自定义 UA...", "info");
                 
                 await player.load(url);
-                addLog("媒体流加载成功开始播放", "success");
+                addLog("媒体流加载成功", "success");
+
+                // --- 处理默认最高画质逻辑 ---
+                if (forceHQ) {
+                    const tracks = player.getVariantTracks();
+                    // 过滤出有高度的视频轨，并按带宽(清晰度)降序排列
+                    const highestTrack = tracks.filter(t => t.height).sort((a, b) => b.bandwidth - a.bandwidth)[0];
+                    if (highestTrack) {
+                        player.configure({ abr: { enabled: false } }); // 关闭自适应
+                        player.selectVariantTrack(highestTrack, true);
+                        addLog(`已自动锁定最高画质: ${highestTrack.height}p`, "success");
+                        // 同步更新UI
+                        setTimeout(() => {
+                            document.getElementById('videoTracks').value = highestTrack.id;
+                        }, 500);
+                    }
+                } else {
+                    document.getElementById('videoTracks').value = 'auto';
+                }
                 
                 videoEl.play();
-                document.getElementById('videoTracks').value = 'auto';
                 
                 updateStreamInfo();
                 updateTimer = setInterval(updateStreamInfo, 1000);
