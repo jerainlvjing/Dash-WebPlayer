@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRO DASH Player | Shaka</title>
+    <title>Dash-WebPlayer | Shaka Player</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.js"></script>
     
@@ -19,67 +19,40 @@
             --accent-hover: #2563eb;
             --error-color: #ef4444;
             --success-color: #10b981;
+            --warning-color: #f59e0b;
         }
 
-        body {
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-body);
             color: var(--text-main);
-            margin: 0;
-            padding: 30px 20px;
-            display: flex;
-            justify-content: center;
         }
 
         .app-container {
-            width: 100%;
-            max-width: 1200px;
             display: flex;
-            gap: 24px;
+            height: 100vh;
+            width: 100vw;
         }
 
+        /* 左侧播放器区 */
         .player-section {
-            flex: 2;
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            min-width: 0;
-        }
-
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 4px;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-            background: linear-gradient(90deg, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .header-tag {
-            background: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background-color: #000;
+            position: relative;
         }
 
         .video-wrapper {
-            background-color: #000;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border-color);
-            aspect-ratio: 16 / 9;
-            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         video {
@@ -89,137 +62,118 @@
             object-fit: contain;
         }
 
-        .control-section {
-            flex: 1;
-            background-color: var(--bg-card);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            min-width: 300px;
+        .player-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(11, 15, 25, 0.7);
+            backdrop-filter: blur(8px);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .control-section h2 {
+        .player-header h1 {
             margin: 0;
             font-size: 18px;
-            color: var(--text-main);
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .input-group {
+        /* 右侧控制区 */
+        .control-section {
+            width: 400px;
+            min-width: 320px;
+            background-color: var(--bg-card);
+            border-left: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            overflow-y: auto;
+            padding: 24px;
+            box-sizing: border-box;
+            gap: 20px;
         }
 
-        .input-group label {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .control-section h2 { margin: 0; font-size: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
 
-        input[type="text"] {
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        .input-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        input[type="text"], select {
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
             color: var(--text-main);
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-            transition: all 0.3s ease;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
             outline: none;
+            width: 100%;
+            box-sizing: border-box;
         }
-
-        input[type="text"]:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
+        input[type="text"]:focus, select:focus { border-color: var(--accent-color); }
 
         .btn-play {
             background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
-            color: white;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-            margin-top: 4px;
+            color: white; border: none; padding: 12px; border-radius: 6px;
+            font-size: 15px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: 0.2s;
+        }
+        .btn-play:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4); }
+
+        /* 面板区域 */
+        .panel-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-grow: 1;
         }
 
-        .btn-play:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-        }
-
-        #log {
-            font-size: 13px;
-            color: var(--error-color);
-            min-height: 20px;
-            font-weight: 500;
-        }
-
-        .terminal-panel {
+        .info-panel {
             background-color: #020617;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            flex-grow: 1;
-            position: relative;
-            overflow: hidden;
+            border-radius: 6px;
+            padding: 12px;
         }
-
-        .terminal-panel::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background-color: var(--success-color);
-        }
-
-        .terminal-header {
-            font-size: 12px;
-            color: var(--success-color);
-            margin-bottom: 12px;
-            font-family: monospace;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .terminal-header .dot {
-            width: 8px; height: 8px;
-            background-color: var(--success-color);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .info-content {
-            font-family: "JetBrains Mono", "Courier New", monospace;
-            font-size: 12px;
-            line-height: 1.8;
-            color: #cbd5e1;
-            white-space: pre-wrap;
-        }
-
+        .info-content { font-family: "JetBrains Mono", monospace; font-size: 12px; line-height: 1.6; color: #cbd5e1; }
         .highlight { color: #60a5fa; font-weight: bold; }
 
-        @keyframes pulse {
-            0% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { opacity: 0.4; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        .log-panel {
+            background-color: #020617;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            min-height: 150px;
         }
+        .log-header { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between;}
+        .log-header span { cursor: pointer; color: var(--accent-color); }
+        .log-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            padding-right: 5px;
+        }
+        .log-time { color: #64748b; margin-right: 6px; }
+        .log-info { color: #94a3b8; }
+        .log-success { color: var(--success-color); }
+        .log-warning { color: var(--warning-color); }
+        .log-error { color: var(--error-color); font-weight: bold; }
 
-        @media (max-width: 960px) {
-            .app-container { flex-direction: column; }
-            .player-section, .control-section { width: 100%; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        @media (max-width: 800px) {
+            .app-container { flex-direction: column; overflow-y: auto; }
+            .player-section { flex: none; height: 40vh; }
+            .control-section { width: 100%; flex: 1; border-left: none; border-top: 1px solid var(--border-color); }
         }
     </style>
 </head>
@@ -227,166 +181,273 @@
 
     <div class="app-container">
         <div class="player-section">
-            <div class="header">
+            <div class="player-header">
                 <h1>PRO DASH Player</h1>
-                <span class="header-tag">Shaka 内核</span>
-                <span class="header-tag">ClearKey</span>
             </div>
             <div class="video-wrapper">
-                <video id="videoPlayer" controls autoplay></video>
+                <video id="videoPlayer" controls poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
             </div>
         </div>
 
         <div class="control-section">
-            <h2>流媒体调试控制台</h2>
+            <h2>流媒体调试中心</h2>
             
             <div class="input-group">
-                <label for="streamUrl">DASH 流地址 (MPD URL)</label>
-                <input type="text" id="streamUrl" placeholder="https://example.com/manifest.mpd">
+                <label>DASH 流地址 (MPD)</label>
+                <input type="text" id="streamUrl" placeholder="https://...">
             </div>
             
             <div class="input-group">
-                <label for="licenseKey">许可证密钥 (16进制格式)</label>
-                <input type="text" id="licenseKey" placeholder="kid:key (例如: 1234...:abcd...)">
+                <label>解密密钥 (kid:key 十六进制)</label>
+                <input type="text" id="licenseKey" placeholder="例如: 1234...:abcd...">
             </div>
             
-            <button class="btn-play" onclick="loadAndPlay()">初始化并播放</button>
-            <div id="log"></div>
+            <button class="btn-play" onclick="loadAndPlay()">初始化网络流</button>
 
-            <div class="terminal-panel">
-                <div class="terminal-header">
-                    <div class="dot"></div>
-                    实时监控数据
+            <div class="input-group">
+                <label>视频分辨率 (Video Quality)</label>
+                <select id="videoTracks" onchange="onVideoTrackChange()" disabled>
+                    <option value="auto">自动 (自适应码率)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>音频轨道 (Audio Track)</label>
+                <select id="audioTracks" onchange="onAudioTrackChange()" disabled>
+                    <option value="auto">默认音频</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>字幕开关 (Subtitles)</label>
+                <select id="textTracks" onchange="onTextTrackChange()" disabled>
+                    <option value="off">关闭字幕</option>
+                </select>
+            </div>
+
+            <div class="panel-container">
+                <div class="info-panel">
+                    <div id="streamInfo" class="info-content">等待流接入...</div>
                 </div>
-                <div id="streamInfo" class="info-content">状态: 等待流接入...</div>
+
+                <div class="log-panel">
+                    <div class="log-header">
+                        实时运行日志 <span onclick="clearLog()">[清空]</span>
+                    </div>
+                    <div id="logContent" class="log-content"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
         let player;
-        let updateTimer = null; // 用于存储心跳定时器
+        let updateTimer = null;
 
+        // --- 日志系统 ---
+        function addLog(msg, type = 'info') {
+            const logBox = document.getElementById('logContent');
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            
+            const p = document.createElement('div');
+            p.innerHTML = `<span class="log-time">[${timeStr}]</span> <span class="log-${type}">${msg}</span>`;
+            logBox.appendChild(p);
+            
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContent').innerHTML = '';
+        }
+
+        // --- 初始化播放器 ---
         async function initApp() {
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
                 const video = document.getElementById('videoPlayer');
                 player = new shaka.Player(video);
+                
                 player.addEventListener('error', onErrorEvent);
+                player.addEventListener('buffering', (e) => {
+                    if(e.buffering) addLog("正在缓冲视频数据...", "warning");
+                });
+                player.addEventListener('adaptation', () => {
+                    addLog("触发自动画质切换 (自适应)", "info");
+                });
+                player.addEventListener('trackschanged', updateTrackMenus);
+
+                addLog("Shaka Player 引擎初始化完成", "success");
             } else {
-                document.getElementById('log').innerText = "❌ 浏览器不支持 Shaka Player";
+                addLog("致命错误：您的浏览器不支持 Shaka Player", "error");
             }
         }
 
         function onErrorEvent(event) {
-            onError(event.detail);
-        }
-
-        function onError(error) {
+            const error = event.detail;
             console.error('Shaka Error:', error);
-            const logElement = document.getElementById('log');
             if (error.code === 6001 || error.code === 6006) {
-                logElement.innerText = "❌ 解密失败：密钥错误或浏览器受限。";
+                addLog(`解密失败 (DRM): 密钥错误或不支持`, "error");
             } else if (error.code === 1002 || error.code === 1001) {
-                logElement.innerText = "❌ 网络拦截：跨域(CORS)或被服务器拒绝。";
+                addLog(`网络错误: 请求被拒绝 (可能跨域或403)`, "error");
             } else if (error.code === 4032) {
-                logElement.innerText = "❌ 格式不支持：当前浏览器无法硬解此编码。";
+                addLog(`解码错误: 浏览器不支持该视频编码`, "error");
             } else {
-                logElement.innerText = "❌ 错误代码: " + error.code + "，请按 F12 查看详细日志。";
+                addLog(`发生异常 (代码 ${error.code})`, "error");
             }
-            document.getElementById('streamInfo').innerText = "状态: 播放发生错误";
-            
-            // 发生错误时停止轮询
-            if (updateTimer) clearInterval(updateTimer);
         }
 
+        // --- 轨道菜单管理 ---
+        function updateTrackMenus() {
+            const videoSelect = document.getElementById('videoTracks');
+            const audioSelect = document.getElementById('audioTracks');
+            const textSelect = document.getElementById('textTracks');
+            
+            const tracks = player.getVariantTracks();
+            const textTracks = player.getTextTracks();
+
+            // 1. 提取视频分辨率
+            videoSelect.innerHTML = '<option value="auto">自动 (自适应码率)</option>';
+            const seenHeights = new Set();
+            const videoTracks = tracks.filter(t => t.height).sort((a, b) => b.height - a.height);
+            videoTracks.forEach(track => {
+                if (!seenHeights.has(track.height)) {
+                    seenHeights.add(track.height);
+                    const option = document.createElement('option');
+                    option.value = track.id;
+                    option.text = `${track.height}p (${(track.bandwidth/1000000).toFixed(1)} Mbps)`;
+                    videoSelect.appendChild(option);
+                }
+            });
+            videoSelect.disabled = false;
+
+            // 2. 提取音频语言
+            audioSelect.innerHTML = '';
+            const audioLangs = player.getAudioLanguagesAndRoles();
+            if(audioLangs.length === 0) {
+                audioSelect.innerHTML = '<option value="auto">无独立音轨</option>';
+            } else {
+                audioLangs.forEach(langInfo => {
+                    const option = document.createElement('option');
+                    option.value = langInfo.language;
+                    option.text = `音频: ${langInfo.language} ` + (langInfo.role ? `(${langInfo.role})` : '');
+                    audioSelect.appendChild(option);
+                });
+            }
+            audioSelect.disabled = false;
+
+            // 3. 提取字幕轨道
+            textSelect.innerHTML = '<option value="off">关闭字幕</option>';
+            if(textTracks.length > 0) {
+                textTracks.forEach(track => {
+                    const option = document.createElement('option');
+                    option.value = track.id;
+                    option.text = track.language + (track.label ? ` - ${track.label}` : '');
+                    textSelect.appendChild(option);
+                });
+                textSelect.disabled = false;
+            }
+        }
+
+        function onVideoTrackChange() {
+            const val = document.getElementById('videoTracks').value;
+            if (val === 'auto') {
+                player.configure({ abr: { enabled: true } });
+                addLog("已开启自动画质 (ABR)", "success");
+            } else {
+                player.configure({ abr: { enabled: false } });
+                const tracks = player.getVariantTracks();
+                const selectedTrack = tracks.find(t => t.id == val);
+                if (selectedTrack) {
+                    player.selectVariantTrack(selectedTrack, true);
+                    addLog(`强制切换分辨率至: ${selectedTrack.height}p`, "success");
+                }
+            }
+        }
+
+        function onAudioTrackChange() {
+            const lang = document.getElementById('audioTracks').value;
+            if(lang && lang !== 'auto') {
+                player.selectAudioLanguage(lang);
+                addLog(`切换音轨语言至: ${lang}`, "success");
+            }
+        }
+
+        function onTextTrackChange() {
+            const val = document.getElementById('textTracks').value;
+            if (val === 'off') {
+                player.setTextTrackVisibility(false);
+                addLog("已关闭字幕显示", "info");
+            } else {
+                const tracks = player.getTextTracks();
+                const selectedTrack = tracks.find(t => t.id == val);
+                if (selectedTrack) {
+                    player.selectTextTrack(selectedTrack);
+                    player.setTextTrackVisibility(true);
+                    addLog(`开启字幕: ${selectedTrack.language}`, "success");
+                }
+            }
+        }
+
+        // --- 数据监控面板 ---
         function updateStreamInfo() {
             if (!player) return;
             const infoDiv = document.getElementById('streamInfo');
-            
-            // 获取轨道列表
             const tracks = player.getVariantTracks();
-            
-            // 寻找正在播放的轨道。如果是刚加载，可能还没标记 active，此时兜底取第一个视频轨
-            let activeTrack = tracks.find(t => t.active);
-            if (!activeTrack && tracks.length > 0) {
-                activeTrack = tracks[0]; 
-            }
+            let activeTrack = tracks.find(t => t.active) || tracks[0];
 
             if (activeTrack) {
-                const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '未知';
-                const aKbps = activeTrack.audioBandwidth ? (activeTrack.audioBandwidth / 1000).toFixed(0) : '未知';
-                const fps = activeTrack.frameRate ? activeTrack.frameRate.toFixed(2) : '未知';
-
-                // 获取实时的网络统计数据 (补充验证)
                 const stats = player.getStats();
-                const actualWidth = stats.width || activeTrack.width || '未知';
-                const actualHeight = stats.height || activeTrack.height || '未知';
+                const actualWidth = stats.width || activeTrack.width || '?';
+                const actualHeight = stats.height || activeTrack.height || '?';
+                const fps = activeTrack.frameRate ? activeTrack.frameRate.toFixed(2) : '?';
+                const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '?';
+                const aKbps = activeTrack.audioBandwidth ? (activeTrack.audioBandwidth / 1000).toFixed(0) : '?';
 
-                const text = `> 视频轨道\n` +
-                             `  分 辨 率 : <span class="highlight">${actualWidth} x ${actualHeight}</span>\n` +
-                             `  帧    率 : <span class="highlight">${fps} fps</span>\n` +
-                             `  视频码率 : <span class="highlight">${vKbps} Kbps</span>\n` +
-                             `  编 码 器 : <span class="highlight">${activeTrack.videoCodec || '未知'}</span>\n\n` +
-                             `> 音频轨道\n` +
-                             `  音频码率 : <span class="highlight">${aKbps} Kbps</span>\n` +
-                             `  编 码 器 : <span class="highlight">${activeTrack.audioCodec || '未知'}</span>`;
-                
-                infoDiv.innerHTML = text; 
+                infoDiv.innerHTML = `实时参数监控:\n` +
+                             `  分辨: <span class="highlight">${actualWidth}x${actualHeight}</span>\n` +
+                             `  帧率: <span class="highlight">${fps} fps</span>\n` +
+                             `  视码: <span class="highlight">${vKbps} Kbps</span> (${activeTrack.videoCodec || '未知'})\n` +
+                             `  音码: <span class="highlight">${aKbps} Kbps</span> (${activeTrack.audioCodec || '未知'})`;
             }
         }
 
+        // --- 核心播放逻辑 ---
         async function loadAndPlay() {
             const url = document.getElementById('streamUrl').value.trim();
             const keyInput = document.getElementById('licenseKey').value.trim();
-            const logElement = document.getElementById('log');
-            const infoElement = document.getElementById('streamInfo');
+            const videoEl = document.getElementById('videoPlayer');
             
-            logElement.innerText = "";
-            infoElement.innerText = "状态: 连接中，请稍候...";
+            if (!url) { addLog("解析失败：地址为空", "error"); return; }
 
-            if (!url) {
-                logElement.innerText = "❌ 请输入有效的 MPD 地址";
-                return;
-            }
+            addLog("开始请求清单文件 (Manifest)...", "info");
 
             let clearKeysConfig = {};
             if (keyInput) {
-                const cleanKeyInput = keyInput.replace(/-/g, '');
-                const parts = cleanKeyInput.split(':');
+                const parts = keyInput.replace(/-/g, '').split(':');
                 if (parts.length === 2) {
                     clearKeysConfig[parts[0]] = parts[1];
+                    addLog(`配置 ClearKey 解密: ${parts[0].substring(0,6)}...`, "info");
                 } else {
-                    logElement.innerText = "❌ 密钥格式必须是 kid:key";
-                    return;
+                    addLog("解析失败：许可证格式错误", "error"); return;
                 }
             }
 
-            player.configure({
-                drm: { clearKeys: clearKeysConfig },
-                abr: { enabled: true }
-            });
+            player.configure({ drm: { clearKeys: clearKeysConfig }, abr: { enabled: true } });
 
             try {
-                // 清理旧的定时器
                 if (updateTimer) clearInterval(updateTimer);
-
+                
                 await player.load(url);
+                addLog("媒体流加载成功，开始解码", "success");
                 
-                logElement.style.color = 'var(--success-color)';
-                logElement.innerText = "✅ 数据流加载成功";
-                
-                // 立即更新一次信息
-                updateStreamInfo();
-                
-                // 开启心跳轮询，每 1 秒强制刷新一次底层数据，确保面板不会空白
-                updateTimer = setInterval(updateStreamInfo, 1000);
+                // 修复点 2：在流加载成功后，用代码触发播放
+                videoEl.play();
 
-                setTimeout(() => {
-                    if(logElement.innerText.includes("✅")) logElement.innerText = "";
-                }, 3000);
+                document.getElementById('videoTracks').value = 'auto';
+                
+                updateStreamInfo();
+                updateTimer = setInterval(updateStreamInfo, 1000);
             } catch (e) {
-                onError(e);
+                onErrorEvent({detail: e});
             }
         }
 
