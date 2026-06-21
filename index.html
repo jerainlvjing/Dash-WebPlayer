@@ -593,7 +593,7 @@
 
         // --- 初始化播放器 ---
         async function initApp() {
-            // 👑 注册自定义刷新按钮
+            // 👑 修复自定义刷新按钮的工厂类注册方式
             class CustomRefresh extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
@@ -604,9 +604,14 @@
                     parent.appendChild(this.btn);
                 }
             }
-            shaka.ui.Controls.registerElement('custom_refresh', new shaka.ui.Element.Factory(CustomRefresh));
+            class CustomRefreshFactory {
+                create(parent, controls) {
+                    return new CustomRefresh(parent, controls);
+                }
+            }
+            shaka.ui.Controls.registerElement('custom_refresh', new CustomRefreshFactory());
 
-            // 👑 注册自定义网页全屏按钮
+            // 👑 修复自定义网页全屏按钮的工厂类注册方式
             class CustomWebFs extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
@@ -628,7 +633,12 @@
                     parent.appendChild(this.btn);
                 }
             }
-            shaka.ui.Controls.registerElement('custom_web_fs', new shaka.ui.Element.Factory(CustomWebFs));
+            class CustomWebFsFactory {
+                create(parent, controls) {
+                    return new CustomWebFs(parent, controls);
+                }
+            }
+            shaka.ui.Controls.registerElement('custom_web_fs', new CustomWebFsFactory());
 
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
@@ -647,16 +657,13 @@
                         'custom_refresh',     // 自定义刷新按钮
                         'time_and_duration',  // 时间线
                         'spacer',
-                        'quality',            // Shaka内置原生分辨率（通过CSS转文字）
+                        'quality',            // Shaka内置原生分辨率（已通过纯CSS强制汉化）
                         'playback_rate',      // 倍速
                         'picture_in_picture', // 画中画
                         'custom_web_fs',      // 网页全屏
                         'fullscreen'          // 全屏
                     ]
                 });
-                
-                // 强制将内部原生菜单（比如分辨率菜单内的数字和标签）汉化
-                ui.getControls().getLocalization().changeLocale('zh-CN');
                 
                 player.addEventListener('error', onErrorEvent);
                 player.addEventListener('trackschanged', updateTrackMenus);
@@ -675,9 +682,13 @@
         function onErrorEvent(event) {
             const error = event.detail;
             toggleSpinner(false); // 出错时关闭转圈
-            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效或环境不支持 DRM`, "error");
-            else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 跨域限制(CORS)或403`, "error");
-            else addLog(`错误代码: ${error.code}`, "error");
+            if (error && error.code) {
+                if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效或环境不支持 DRM`, "error");
+                else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 跨域限制(CORS)或403`, "error");
+                else addLog(`错误代码: ${error.code}`, "error");
+            } else {
+                addLog(`播放异常: ${error}`, "error");
+            }
         }
 
         // --- 轨道设置 ---
