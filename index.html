@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PRO DASH & HLS Player</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.js"></script>
+    <!-- 引入 Shaka Player UI CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
+    <!-- 引入 Shaka Player (含 UI 版本) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js"></script>
     
     <style>
         /* 默认暗黑主题 */
@@ -54,6 +57,9 @@
         /* 左侧：播放器 */
         .player-section { flex: 1; display: flex; background-color: #000; position: relative; min-width: 0; }
         .video-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        
+        /* 覆盖 Shaka UI 的一些默认样式以适配我们的布局 */
+        .shaka-video-container { width: 100%; height: 100%; position: relative; }
         video { width: 100%; height: 100%; display: block; object-fit: contain; }
 
         /* 中间：播放列表 */
@@ -98,7 +104,7 @@
             display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
         }
         .item-logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .item-logo-box span { font-size: 14px; opacity: 0.5; } /* 默认电视图标 */
+        .item-logo-box span { font-size: 14px; opacity: 0.5; }
         
         .item-info { display: flex; flex-direction: column; gap: 3px; overflow: hidden; flex: 1; }
         .item-name { font-weight: 600; color: var(--text-main); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -208,12 +214,17 @@
 <body>
 
     <div class="app-container">
+        <!-- 1. 左侧：播放器 -->
         <div class="player-section">
             <div class="video-wrapper">
-                <video id="videoPlayer" controls poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
+                <!-- 移除了原生的 controls 属性，使用 Shaka 官方容器包装 -->
+                <div id="videoContainer">
+                    <video id="videoPlayer" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
+                </div>
             </div>
         </div>
 
+        <!-- 2. 中间：播放列表 -->
         <div class="playlist-section" id="playlistSection">
             <div class="playlist-header">
                 <h2>频道列表</h2>
@@ -222,20 +233,24 @@
             <div id="playlistContainer" class="playlist-content"></div>
         </div>
 
+        <!-- 3. 右侧：调试控制台 -->
         <div class="control-section">
             <div class="control-header">
                 <h2>调试中心</h2>
+                <!-- 极简时尚主题切换按钮 -->
                 <button class="modern-theme-btn" onclick="toggleTheme()" title="切换亮色/暗黑模式">
                     <span class="icon-light">☀️</span>
                     <span class="icon-dark">🌙</span>
                 </button>
             </div>
             
+            <!-- 智能导入区 -->
             <div class="input-group">
                 <div class="input-header">
                     <label>批量导入 (支持 M3U / TXT)</label>
                     <span class="action-link" id="expandBtn" onclick="toggleTextarea()">[-] 收起输入框</span>
                 </div>
+                <!-- 网络链接导入 -->
                 <div style="display: flex; gap: 8px;">
                     <input type="text" id="urlImportInput" placeholder="输入 http(s):// 结尾的订阅链接..." style="flex:1">
                     <button class="btn-secondary" onclick="fetchPlaylist()" style="flex:none; width: 60px;">拉取</button>
@@ -252,6 +267,7 @@
 
             <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 5px 0;">
             
+            <!-- 基础输入 (支持 MPD 和 M3U8) -->
             <div class="input-group">
                 <label>媒体流地址 (.mpd 或 .m3u8)</label>
                 <input type="text" id="streamUrl" placeholder="https://...">
@@ -268,6 +284,7 @@
             
             <button class="btn-primary" onclick="loadAndPlay()">初始化播放</button>
 
+            <!-- 轨道控制 (增加下方注释) -->
             <div class="btn-row">
                 <div class="input-group" style="flex:1">
                     <select id="videoTracks" onchange="onVideoTrackChange()" disabled><option value="auto">自动画质</option></select>
@@ -283,6 +300,7 @@
                 </div>
             </div>
 
+            <!-- 数据与日志面板 -->
             <div class="panel">
                 <div id="streamInfo" class="info-content">状态: 等待流接入...</div>
             </div>
@@ -299,6 +317,7 @@
 
     <script>
         let player;
+        let ui; // UI 控制器实例
         let updateTimer = null;
         let playlistData = [];
         let logExpanded = true; 
@@ -401,7 +420,7 @@
             addLog("已清空播放列表", "info");
         }
 
-        // --- 播放列表解析 (支持 Logo, Group, HLS/M3U8) ---
+        // --- 播放列表解析 ---
         function parseImport() {
             const text = document.getElementById('importArea').value.trim();
             if (!text) return;
@@ -513,7 +532,6 @@
                     itemDiv.className = 'playlist-item';
                     itemDiv.setAttribute('data-index', item.originalIndex); 
                     
-                    // Logo 占位或图片 (onerror 处理图片失效情况)
                     const logoHtml = item.logo 
                         ? `<img src="${item.logo}" onerror="this.parentElement.innerHTML='<span>📺</span>'">` 
                         : `<span>📺</span>`;
@@ -546,22 +564,39 @@
 
             const item = playlistData[index];
             document.getElementById('streamUrl').value = item.url;
-            document.getElementById('licenseKey').value = item.key || ''; // 如果没有 key 则清空输入框
+            document.getElementById('licenseKey').value = item.key || ''; 
             
             addLog(`请求播放频道: ${item.name}`, "info");
             loadAndPlay();
         }
 
-        // --- 初始化播放器 (兼容 HLS 和 DASH) ---
+        // --- 初始化播放器 (包含 UI) ---
         async function initApp() {
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
                 const video = document.getElementById('videoPlayer');
+                const videoContainer = document.getElementById('videoContainer');
+                
+                // 初始化 Player 和 官方 UI
                 player = new shaka.Player(video);
+                ui = new shaka.ui.Overlay(player, videoContainer, video);
+                
+                // 简化控制栏，保留核心功能，移除繁杂选项
+                ui.configure({
+                    controlPanelElements: [
+                        'play_pause',
+                        'time_and_duration',
+                        'spacer',
+                        'mute',
+                        'volume',
+                        'fullscreen',
+                        'overflow_menu'
+                    ]
+                });
                 
                 player.addEventListener('error', onErrorEvent);
                 player.addEventListener('trackschanged', updateTrackMenus);
-                addLog("Shaka 核心初始化就绪 (支持 DASH / HLS)", "success");
+                addLog("Shaka 核心及 UI 初始化就绪", "success");
             } else {
                 addLog("浏览器不支持该核心", "error");
             }
@@ -569,7 +604,7 @@
 
         function onErrorEvent(event) {
             const error = event.detail;
-            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效或浏览器环境不支持 DRM`, "error");
+            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效或环境不支持 DRM`, "error");
             else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 跨域限制(CORS)或403`, "error");
             else addLog(`错误代码: ${error.code}`, "error");
         }
