@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dash.js 高级播放器 (分栏视图)</title>
-    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <title>Shaka Player 高级调试器 (支持 ClearKey)</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.js"></script>
+    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -25,8 +27,8 @@
 
         /* 左侧：播放器区域 */
         .player-section {
-            flex: 2; /* 占据2份宽度 */
-            min-width: 0; /* 防止视频撑破容器 */
+            flex: 2;
+            min-width: 0;
         }
         .video-container {
             width: 100%;
@@ -40,7 +42,7 @@
 
         /* 右侧：控制与信息区域 */
         .control-section {
-            flex: 1; /* 占据1份宽度 */
+            flex: 1;
             background-color: #1e1e1e;
             padding: 20px;
             border-radius: 8px;
@@ -63,7 +65,7 @@
             font-size: 13px;
         }
         button {
-            background-color: #007bff;
+            background-color: #E53935; /* Shaka 红色风格 */
             color: white;
             border: none;
             padding: 12px 20px;
@@ -74,7 +76,7 @@
             font-weight: bold;
             transition: background 0.2s;
         }
-        button:hover { background-color: #0056b3; }
+        button:hover { background-color: #C62828; }
         
         #log { color: #ff6b6b; margin-top: 10px; font-size: 14px; font-weight: bold; }
 
@@ -85,7 +87,7 @@
             border: 1px solid #333;
             border-radius: 6px;
             padding: 15px;
-            flex-grow: 1; /* 填满剩余高度 */
+            flex-grow: 1;
         }
         .info-panel h3 { margin-top: 0; font-size: 16px; color: #4CAF50; margin-bottom: 15px; }
         .info-content {
@@ -96,7 +98,6 @@
             white-space: pre-wrap;
         }
 
-        /* 响应式设计：屏幕太小时改为上下堆叠 */
         @media (max-width: 900px) {
             .main-layout { flex-direction: column; }
             .player-section, .control-section { flex: auto; }
@@ -107,9 +108,9 @@
 
     <div class="main-layout">
         <div class="player-section">
-            <h2>Dash.js 调试播放器</h2>
+            <h2>Shaka Player 调试内核</h2>
             <div class="video-container">
-                <video id="videoPlayer" controls></video>
+                <video id="videoPlayer" controls autoplay></video>
             </div>
         </div>
 
@@ -119,10 +120,10 @@
                 <input type="text" id="streamUrl" placeholder="https://...">
             </div>
             <div class="input-group">
-                <label for="licenseKey">License Key (kid:key)</label>
-                <input type="text" id="licenseKey" placeholder="kid:key">
+                <label for="licenseKey">License Key (kid:key 十六进制)</label>
+                <input type="text" id="licenseKey" placeholder="例如: 1234...:abcd...">
             </div>
-            <button onclick="playVideo()">加载并播放</button>
+            <button onclick="loadAndPlay()">加载并播放</button>
             <div id="log"></div>
 
             <div class="info-panel">
@@ -135,63 +136,79 @@
     <script>
         let player;
 
-        // Hex 转 Base64URL
-        function hexToBase64Url(hexString) {
-            hexString = hexString.replace(/[- ]/g, '');
-            if (!/^[0-9a-fA-F]+$/.test(hexString)) return hexString;
-            let bytes = new Uint8Array(hexString.length / 2);
-            for (let i = 0; i < hexString.length; i += 2) {
-                bytes[i / 2] = parseInt(hexString.substr(i, 2), 16);
+        // 初始化 Shaka Player
+        async function initApp() {
+            // 安装 Polyfills 以修补浏览器的兼容性差异
+            shaka.polyfill.installAll();
+
+            if (shaka.Player.isBrowserSupported()) {
+                const video = document.getElementById('videoPlayer');
+                player = new shaka.Player(video);
+
+                // 监听错误事件
+                player.addEventListener('error', onErrorEvent);
+                
+                // 监听画质自适应切换事件，用于更新信息面板
+                player.addEventListener('adaptation', updateStreamInfo);
+                player.addEventListener('variantchanged', updateStreamInfo);
+            } else {
+                document.getElementById('log').innerText = "错误：您的浏览器不支持 Shaka Player！";
             }
-            let base64 = btoa(String.fromCharCode.apply(null, bytes));
-            return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
         }
 
-        // 更新面板上的流信息
+        // 处理错误信息
+        function onErrorEvent(event) {
+            onError(event.detail);
+        }
+
+        function onError(error) {
+            console.error('Error code', error.code, 'object', error);
+            const logElement = document.getElementById('log');
+            
+            // 友好的错误提示翻译
+            if (error.code === 6001 || error.code === 6006) {
+                logElement.innerText = "解密失败：DRM/Key 错误，或浏览器拦截。";
+            } else if (error.code === 1002 || error.code === 1001) {
+                logElement.innerText = "网络错误：无法拉取流文件 (可能是 CORS 跨域问题或 403 拦截)。";
+            } else if (error.code === 4032) {
+                logElement.innerText = "格式错误：当前浏览器不支持该视频编码 (请尝试使用 Safari)。";
+            } else {
+                logElement.innerText = "发生错误 (代码: " + error.code + ")，请查看控制台 (F12)。";
+            }
+        }
+
+        // 更新流信息面板
         function updateStreamInfo() {
             if (!player) return;
             const infoDiv = document.getElementById('streamInfo');
             
-            try {
-                // 获取视频信息
-                const videoQuality = player.getQualityFor('video');
-                const videoBitrates = player.getBitrateInfoListFor('video');
-                let videoText = "无视频轨";
+            // 获取当前正在播放的所有轨道 (Variant Tracks)
+            const tracks = player.getVariantTracks();
+            // 找到状态为 active (正在渲染) 的那个轨道
+            const activeTrack = tracks.find(t => t.active);
+
+            if (activeTrack) {
+                const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '未知';
+                const aKbps = activeTrack.audioBandwidth ? (activeTrack.audioBandwidth / 1000).toFixed(0) : '未知';
+                const fps = activeTrack.frameRate ? activeTrack.frameRate.toFixed(2) : '未知';
+
+                const text = `[ 视频参数 ]\n` +
+                             `分 辨 率 : ${activeTrack.width} x ${activeTrack.height}\n` +
+                             `帧    率 : ${fps} fps\n` +
+                             `视频码率 : ${vKbps} Kbps\n` +
+                             `编 码 器 : ${activeTrack.videoCodec || '未知'}\n\n` +
+                             `[ 音频参数 ]\n` +
+                             `音频码率 : ${aKbps} Kbps\n` +
+                             `编 码 器 : ${activeTrack.audioCodec || '未知'}`;
                 
-                if (videoBitrates && videoBitrates.length > videoQuality) {
-                    const vInfo = videoBitrates[videoQuality];
-                    // 计算码率 Mbps 或 Kbps
-                    const vKbps = (vInfo.bitrate / 1000).toFixed(0);
-                    videoText = `分 辨 率 : ${vInfo.width} x ${vInfo.height}\n` +
-                                `视频帧率 : ${vInfo.frameRate !== undefined ? vInfo.frameRate.toFixed(2) : '未知'} fps\n` +
-                                `视频码率 : ${vKbps} Kbps\n` +
-                                `视频编码 : ${vInfo.codec || '未知'}`;
-                }
-
-                // 获取音频信息
-                const audioQuality = player.getQualityFor('audio');
-                const audioBitrates = player.getBitrateInfoListFor('audio');
-                let audioText = "无音频轨";
-
-                if (audioBitrates && audioBitrates.length > audioQuality) {
-                    const aInfo = audioBitrates[audioQuality];
-                    const aKbps = (aInfo.bitrate / 1000).toFixed(0);
-                    audioText = `音频码率 : ${aKbps} Kbps\n` +
-                                `音频编码 : ${aInfo.codec || '未知'}`;
-                }
-
-                // 拼装显示
-                infoDiv.innerText = `[ 视频参数 ]\n${videoText}\n\n[ 音频参数 ]\n${audioText}`;
-
-            } catch (e) {
-                console.warn("读取流信息时出错:", e);
+                infoDiv.innerText = text;
             }
         }
 
-        function playVideo() {
+        // 核心播放逻辑
+        async function loadAndPlay() {
             const url = document.getElementById('streamUrl').value.trim();
             const keyInput = document.getElementById('licenseKey').value.trim();
-            const videoElement = document.getElementById('videoPlayer');
             const logElement = document.getElementById('log');
             const infoElement = document.getElementById('streamInfo');
             
@@ -203,50 +220,43 @@
                 return;
             }
 
-            if (player) {
-                player.destroy();
-            }
-
-            player = dashjs.MediaPlayer().create();
-            let protData = null;
-
+            // 配置 DRM (ClearKey)
+            let clearKeysConfig = {};
             if (keyInput) {
-                const parts = keyInput.split(':');
+                // Shaka 直接支持去除了连字符的 Hex 字符串！
+                const cleanKeyInput = keyInput.replace(/-/g, '');
+                const parts = cleanKeyInput.split(':');
                 if (parts.length === 2) {
-                    try {
-                        const kidBase64 = hexToBase64Url(parts[0]);
-                        const keyBase64 = hexToBase64Url(parts[1]);
-                        protData = {
-                            "org.w3.clearkey": { "clearkeys": { [kidBase64]: keyBase64 } }
-                        };
-                    } catch (e) {
-                        logElement.innerText = "错误：kid:key 格式解析失败。";
-                        return;
-                    }
+                    // 格式：'kid' : 'key'
+                    clearKeysConfig[parts[0]] = parts[1];
                 } else {
-                    logElement.innerText = "错误：License 格式不正确。";
+                    logElement.innerText = "错误：License 格式不正确，必须是 kid:key。";
                     return;
                 }
             }
 
-            if (protData) {
-                player.setProtectionData(protData);
-            }
-
-            // 监听初始化成功和画质自适应切换事件，用于更新右侧信息面板
-            player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, updateStreamInfo);
-            player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, updateStreamInfo);
-
-            // 错误监听
-            player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-                if(e.error === "key_session") {
-                    logElement.innerText = "解密失败：Key 错误或环境受限。";
+            // 应用配置
+            player.configure({
+                drm: {
+                    clearKeys: clearKeysConfig
+                },
+                abr: {
+                    enabled: true // 开启自适应码率
                 }
-                console.error("Dash.js Error:", e);
             });
 
-            player.initialize(videoElement, url, true);
+            // 加载视频流
+            try {
+                await player.load(url);
+                console.log('加载成功！');
+                updateStreamInfo(); // 初始拉取一次信息
+            } catch (e) {
+                onError(e);
+            }
         }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
