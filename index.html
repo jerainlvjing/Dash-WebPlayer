@@ -37,7 +37,6 @@
         .shaka-video-container { width: 100%; height: 100%; position: relative; }
         video { width: 100%; height: 100%; display: block; object-fit: contain; }
 
-        /* 👑 网页全屏样式 */
         .player-section.web-fullscreen {
             position: fixed !important; top: 0; left: 0;
             width: 100vw !important; height: 100vh !important;
@@ -52,8 +51,17 @@
             font-size: 13px !important; font-family: monospace; line-height: 1 !important;
         }
 
-        /* 👑 右下角控件排版：{图标} 文字 */
-        /* 1. 重置所有右侧按钮的布局基础属性，让内容横向对齐 */
+        /* 👑 彻底修复控件：{图标} 文字 的排版问题 */
+        /* 1. 隐藏原生文字干扰（如 1x, fullscreen 等） */
+        .shaka-resolution-button, 
+        .shaka-playback-rate-button,
+        .shaka-pip-button, 
+        .shaka-fullscreen-button {
+            font-size: 0 !important; /* 彻底屏蔽原生内联文字 */
+        }
+        .shaka-button-label { display: none !important; } 
+
+        /* 2. 统一所有底部控制按钮的布局 */
         .shaka-resolution-button, 
         .shaka-playback-rate-button,
         .shaka-pip-button, 
@@ -67,9 +75,6 @@
             padding: 0 10px !important;
             height: 100%;
             background: transparent; border: none; cursor: pointer;
-            font-family: 'Inter', sans-serif !important;
-            font-size: 13px !important; 
-            font-weight: 500 !important;
             color: var(--text-main) !important;
             white-space: nowrap !important;
             transition: color 0.2s;
@@ -83,7 +88,7 @@
             color: var(--accent-color) !important;
         }
 
-        /* 2. 确保原生 SVG 图标显示正常，且在文字左侧 */
+        /* 3. 强制唤醒并统一尺寸原生 SVG 图标 */
         .shaka-resolution-button svg, 
         .shaka-playback-rate-button svg,
         .shaka-pip-button svg, 
@@ -92,18 +97,15 @@
             display: block !important; 
             width: 20px !important; 
             height: 20px !important;
-            margin-right: 4px !important; /* 图标和文字的间距 */
+            margin-right: 4px !important; 
             fill: currentColor;
         }
 
-        /* 3. 使用伪元素追加中文文字 */
-        .shaka-resolution-button::after { content: '分辨率'; }
-        .shaka-playback-rate-button::after { content: '倍速'; }
-        .shaka-pip-button::after { content: '画中画'; }
-        .shaka-fullscreen-button::after { content: '全屏'; }
-        
-        /* 屏蔽原生可能多生成的内部 span 文本节点，防止乱码或重复 */
-        .shaka-button-label { display: none !important; }
+        /* 4. 在图标后方注入固定的中文文字 */
+        .shaka-resolution-button::after { content: '分辨率'; font-size: 13px !important; font-family: 'Inter', sans-serif !important; font-weight: 500;}
+        .shaka-playback-rate-button::after { content: '倍速'; font-size: 13px !important; font-family: 'Inter', sans-serif !important; font-weight: 500;}
+        .shaka-pip-button::after { content: '画中画'; font-size: 13px !important; font-family: 'Inter', sans-serif !important; font-weight: 500;}
+        .shaka-fullscreen-button::after { content: '全屏'; font-size: 13px !important; font-family: 'Inter', sans-serif !important; font-weight: 500;}
 
         /* 👑 刷新按钮样式 (仅图标) */
         .custom-refresh-btn {
@@ -111,10 +113,7 @@
             display: flex; align-items: center; justify-content: center; padding: 0 10px; height: 100%;
         }
         .custom-refresh-btn:hover { color: var(--accent-color); }
-        .custom-refresh-btn svg { 
-            width: 20px; height: 20px; fill: currentColor; 
-            transition: transform 0.3s ease; 
-        }
+        .custom-refresh-btn svg { width: 20px; height: 20px; fill: currentColor; transition: transform 0.3s ease; }
         .custom-refresh-btn:hover svg { transform: rotate(90deg); }
 
         /* 现代化加载动画 */
@@ -162,6 +161,7 @@
         .control-section { width: 380px; min-width: 320px; background-color: var(--bg-card); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; padding: 20px; box-sizing: border-box; gap: 16px; }
         .control-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 4px; }
         .control-header h2 { margin: 0; font-size: 16px; }
+        
         .input-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
         .input-header { display: flex; justify-content: space-between; align-items: center; }
         .input-header label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
@@ -199,17 +199,14 @@
         .log-success { color: var(--success-color); }
         .log-error { color: var(--error-color); font-weight: bold; }
 
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        :root ::-webkit-scrollbar-thumb { background: #334155; }
-
-        @media (max-width: 960px) {
-            .app-container { flex-direction: column; overflow-y: auto; }
-            .player-section { flex: none; height: 35vh; }
-            .playlist-section { width: 100%; border-left: none; border-top: 1px solid var(--border-color); height: 30vh; }
-            .control-section { width: 100%; flex: 1; border-left: none; border-top: 1px solid var(--border-color); }
+        /* 清除缓存气泡框 */
+        .confirm-bubble {
+            display: none; position: absolute; right: 0; top: 24px;
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 6px; z-index: 10; font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5); white-space: nowrap;
         }
+        .confirm-bubble.show { display: block; }
     </style>
 </head>
 <body>
@@ -233,9 +230,14 @@
         </div>
 
         <div class="control-section">
-            <div class="control-header">
+            <div class="control-header" style="position: relative;">
                 <h2>调试中心</h2>
-                <span class="action-link" style="color:var(--error-color)" onclick="clearLocalCache()">[🗑️ 清除所有缓存]</span>
+                <span class="action-link" style="color:var(--error-color)" onclick="showClearConfirm()">[🗑️ 清除所有缓存]</span>
+                <div id="clearConfirmBox" class="confirm-bubble">
+                    确认清空所有配置？ 
+                    <span style="color:var(--error-color); cursor:pointer; font-weight:bold; margin:0 8px;" onclick="executeClearCache()">[确认]</span>
+                    <span style="color:var(--text-muted); cursor:pointer;" onclick="hideClearConfirm()">[取消]</span>
+                </div>
             </div>
             
             <div class="input-group">
@@ -273,10 +275,10 @@
             <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 5px 0;">
             
             <div class="input-group">
-                <label>媒体流地址 (.mpd 或 .m3u8)</label>
+                <label id="streamUrlLabel">媒体流地址 (.mpd 或 .m3u8)</label>
                 <input type="text" id="streamUrl" placeholder="https://..." oninput="saveConfig()">
             </div>
-            <div class="input-group">
+            <div class="input-group" id="licenseGroup">
                 <label>License Key (加密频道专用)</label>
                 <input type="text" id="licenseKey" placeholder="kid:key (无加密留空)" oninput="saveConfig()">
             </div>
@@ -343,7 +345,10 @@
                 const cacheStr = localStorage.getItem('ProPlayerCache');
                 if (cacheStr) {
                     const config = JSON.parse(cacheStr);
-                    if(config.core) document.getElementById('playerCore').value = config.core;
+                    if(config.core) {
+                        document.getElementById('playerCore').value = config.core;
+                        updateUIForCore(config.core); // 渲染时处理显隐
+                    }
                     if(config.importUrl) document.getElementById('urlImportInput').value = config.importUrl;
                     if(config.importText) document.getElementById('importArea').value = config.importText;
                     if(config.streamUrl) document.getElementById('streamUrl').value = config.streamUrl;
@@ -361,18 +366,35 @@
             }
         }
 
-        function clearLocalCache() {
-            if(confirm('确定要清除所有缓存的播放列表和配置吗？')) {
-                localStorage.removeItem('ProPlayerCache');
-                addLog("缓存已清空，页面即将刷新...", "info");
-                setTimeout(() => location.reload(), 1000);
+        // --- 清除缓存交互逻辑 ---
+        function showClearConfirm() { document.getElementById('clearConfirmBox').classList.add('show'); }
+        function hideClearConfirm() { document.getElementById('clearConfirmBox').classList.remove('show'); }
+        function executeClearCache() {
+            localStorage.removeItem('ProPlayerCache');
+            hideClearConfirm();
+            addLog("缓存已清空，页面即将刷新...", "info");
+            setTimeout(() => location.reload(), 1000);
+        }
+
+        // --- 核心切换 UI 动态调整 ---
+        function updateUIForCore(core) {
+            const licenseGroup = document.getElementById('licenseGroup');
+            const streamLabel = document.getElementById('streamUrlLabel');
+            if (core === 'hlsjs') {
+                licenseGroup.style.display = 'none';
+                streamLabel.innerText = '媒体流地址 (.m3u8)';
+            } else {
+                licenseGroup.style.display = 'flex';
+                streamLabel.innerText = '媒体流地址 (.mpd 或 .m3u8)';
             }
         }
 
         function onCoreChange() {
+            const core = document.getElementById('playerCore').value;
             saveConfig();
-            addLog("核心引擎已切换，正在重新加载环境...", "warning");
-            setTimeout(() => location.reload(), 300);
+            updateUIForCore(core);
+            addLog("核心引擎已切换，正在刷新以应用纯净环境...", "warning");
+            setTimeout(() => location.reload(), 300); // 必须重载页面，防止两个引擎互相干扰导致不可控bug
         }
 
         // --- UI 控制辅助 ---
@@ -568,23 +590,33 @@
             class CustomRefreshFactory { create(parent, controls) { return new CustomRefresh(parent, controls); } }
             shaka.ui.Controls.registerElement('custom_refresh', new CustomRefreshFactory());
 
-            // 👑 注册带有原生SVG架构的网页全屏按钮，为了与 Shaka 内置按钮对齐
+            // 👑 注册自带 SVG 的自定义网页全屏按钮
             class CustomWebFs extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
                     this.btn = document.createElement('button');
                     this.btn.className = 'shaka-button custom-web-fs-btn';
-                    this.btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg><span class="btn-text">网页全屏</span>`;
+                    // 内部结构： SVG + span (文字通过 ::after 处理，这里保留原生结构占位)
+                    this.btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>`;
                     this.isWebFs = false;
+                    
+                    // 用 JS 动态创建内联文字样式，因为 ::after 不能被轻松替换内容
+                    const textNode = document.createElement('span');
+                    textNode.style.fontFamily = "'Inter', sans-serif";
+                    textNode.style.fontSize = "13px";
+                    textNode.style.fontWeight = "500";
+                    textNode.innerText = "网页全屏";
+                    this.btn.appendChild(textNode);
+
                     this.btn.onclick = () => {
                         const sec = document.querySelector('.player-section');
                         this.isWebFs = !this.isWebFs;
                         if (this.isWebFs) {
                             sec.classList.add('web-fullscreen');
-                            this.btn.querySelector('.btn-text').innerText = '退出网页';
+                            textNode.innerText = '退出网页';
                         } else {
                             sec.classList.remove('web-fullscreen');
-                            this.btn.querySelector('.btn-text').innerText = '网页全屏';
+                            textNode.innerText = '网页全屏';
                         }
                     };
                     parent.appendChild(this.btn);
