@@ -156,11 +156,10 @@
 
         /* 面板与日志 */
         .panel { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; }
-        .info-content { font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.6; }
+        .info-content { font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.8; }
         .highlight { color: var(--accent-color); font-weight: bold; }
 
         .log-panel-container { display: flex; flex-direction: column; transition: all 0.3s ease; }
-        /* 修复折叠时漏出文字的 Bug：通过 display: none 彻底隐藏子元素 */
         .log-panel-container.collapsed { height: 36px; min-height: 36px; flex-grow: 0; padding-bottom: 0; overflow: hidden; }
         .log-panel-container.collapsed .log-content { display: none; }
         
@@ -518,7 +517,7 @@
             else addLog(`错误: ${error.code}`, "error");
         }
 
-        // --- 轨道设置 ---
+        // --- 轨道设置 (修复 4K 匹配 Bug) ---
         function updateTrackMenus() {
             const videoSelect = document.getElementById('videoTracks');
             const audioSelect = document.getElementById('audioTracks');
@@ -527,22 +526,40 @@
             const tracks = player.getVariantTracks();
             const textTracks = player.getTextTracks();
 
-            videoSelect.innerHTML = '<option value="auto">自动画质</option>';
-            const seenHeights = new Set();
-            tracks.filter(t => t.height).sort((a, b) => b.height - a.height).forEach(track => {
-                if (!seenHeights.has(track.height)) {
-                    seenHeights.add(track.height);
-                    videoSelect.add(new Option(`${track.height}p`, track.id));
+            // 1. 过滤并按分辨率提取最高码率的轨
+            const heightMap = new Map();
+            tracks.forEach(t => {
+                if (t.height) {
+                    if (!heightMap.has(t.height) || heightMap.get(t.height).bandwidth < t.bandwidth) {
+                        heightMap.set(t.height, t); // 保证存入的是该分辨率下码率最高的那条轨
+                    }
                 }
             });
+
+            // 获取旧的值以便尽量保持选择
+            const oldVideoVal = videoSelect.value;
+            videoSelect.innerHTML = '<option value="auto">自动画质</option>';
+
+            const sortedTracks = Array.from(heightMap.values()).sort((a, b) => b.height - a.height);
+            sortedTracks.forEach(track => {
+                const Mbps = (track.bandwidth / 1000000).toFixed(1);
+                videoSelect.add(new Option(`${track.height}p (${Mbps}M)`, track.id));
+            });
+
+            // 恢复/保持 UI 选中状态
+            if (oldVideoVal && Array.from(videoSelect.options).some(o => o.value === oldVideoVal)) {
+                videoSelect.value = oldVideoVal;
+            }
             videoSelect.disabled = false;
 
+            // 2. 音轨提取
             audioSelect.innerHTML = '';
             const audioLangs = player.getAudioLanguagesAndRoles();
             if(audioLangs.length === 0) audioSelect.add(new Option('无独立音轨', 'auto'));
             else audioLangs.forEach(l => audioSelect.add(new Option(l.language, l.language)));
             audioSelect.disabled = false;
 
+            // 3. 字幕提取
             textSelect.innerHTML = '<option value="off">关闭字幕</option>';
             if(textTracks.length > 0) textTracks.forEach(t => textSelect.add(new Option(t.language, t.id)));
             textSelect.disabled = false;
@@ -550,17 +567,24 @@
 
         function onVideoTrackChange() {
             const val = document.getElementById('videoTracks').value;
-            if (val === 'auto') player.configure({ abr: { enabled: true } });
-            else {
+            if (val === 'auto') {
+                player.configure({ abr: { enabled: true } });
+                addLog("已开启自动画质", "success");
+            } else {
                 player.configure({ abr: { enabled: false } });
                 const t = player.getVariantTracks().find(t => t.id == val);
-                if (t) player.selectVariantTrack(t, true);
+                if (t) {
+                    player.selectVariantTrack(t, true);
+                    addLog(`强制切换画质: ${t.height}p`, "success");
+                }
             }
         }
+
         function onAudioTrackChange() {
             const lang = document.getElementById('audioTracks').value;
             if(lang && lang !== 'auto') player.selectAudioLanguage(lang);
         }
+
         function onTextTrackChange() {
             const val = document.getElementById('textTracks').value;
             if (val === 'off') player.setTextTrackVisibility(false);
@@ -570,6 +594,7 @@
             }
         }
 
+        // --- 数据监控面板 (按要求分两行) ---
         function updateStreamInfo() {
             if (!player) return;
             const infoDiv = document.getElementById('streamInfo');
@@ -579,8 +604,16 @@
                 const stats = player.getStats();
                 const actualWidth = stats.width || activeTrack.width || '?';
                 const actualHeight = stats.height || activeTrack.height || '?';
+                const fps = activeTrack.frameRate ? activeTrack.frameRate.toFixed(2) : '?';
+                
+                const vCodec = activeTrack.videoCodec || '?';
                 const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '?';
-                infoDiv.innerHTML = `监控: <span class="highlight">${actualWidth}x${actualHeight}</span> | 视码: <span class="highlight">${vKbps}Kbps</span> | 音码: <span class="highlight">${(activeTrack.audioBandwidth/1000).toFixed(0)}Kbps</span>`;
+                
+                const aCodec = activeTrack.audioCodec || '?';
+                const aKbps = activeTrack.audioBandwidth ? (activeTrack.audioBandwidth / 1000).toFixed(0) : '?';
+
+                infoDiv.innerHTML = `视频: <span class="highlight">${actualWidth}x${actualHeight}</span> | <span class="highlight">${fps} fps</span> | ${vCodec} | <span class="highlight">${vKbps} Kbps</span><br>` +
+                                    `音频: ${aCodec} | <span class="highlight">${aKbps} Kbps</span>`;
             }
         }
 
@@ -614,16 +647,20 @@
                 await player.load(url);
                 addLog("媒体流加载成功", "success");
 
+                // --- 锁定最高画质逻辑 ---
                 if (forceHQ) {
                     const tracks = player.getVariantTracks();
+                    // 找到带宽最大的那条视频轨
                     const highestTrack = tracks.filter(t => t.height).sort((a, b) => b.bandwidth - a.bandwidth)[0];
                     if (highestTrack) {
                         player.configure({ abr: { enabled: false } }); 
                         player.selectVariantTrack(highestTrack, true);
                         addLog(`自动锁定画质: ${highestTrack.height}p`, "success");
+                        // 延迟等待下拉菜单重新渲染后，赋值对应的 ID
                         setTimeout(() => {
-                            document.getElementById('videoTracks').value = highestTrack.id;
-                        }, 500);
+                            const videoSelect = document.getElementById('videoTracks');
+                            videoSelect.value = highestTrack.id;
+                        }, 200);
                     }
                 } else {
                     document.getElementById('videoTracks').value = 'auto';
