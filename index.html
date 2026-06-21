@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.js"></script>
     
     <style>
-        /* 默认暗黑主题变量 */
+        /* 默认暗黑主题 */
         :root {
             --bg-body: #0b0f19;
             --bg-card: #151c2c;
@@ -20,13 +20,13 @@
             --accent-hover: #2563eb;
             --error-color: #ef4444;
             --success-color: #10b981;
-            --warning-color: #f59e0b;
             --list-hover: #1e293b;
             --list-active: rgba(59, 130, 246, 0.2);
             --panel-bg: #020617;
+            --group-bg: #111827;
         }
 
-        /* 亮色主题变量 */
+        /* 亮色主题 */
         [data-theme="light"] {
             --bg-body: #f1f5f9;
             --bg-card: #ffffff;
@@ -39,6 +39,7 @@
             --list-hover: #f1f5f9;
             --list-active: #e0e7ff;
             --panel-bg: #f8fafc;
+            --group-bg: #e2e8f0;
         }
 
         body, html {
@@ -50,84 +51,117 @@
 
         .app-container { display: flex; height: 100vh; width: 100vw; }
 
-        /* 左侧播放器 */
-        .player-section { flex: 1; display: flex; background-color: #000; position: relative; }
+        /* 左侧：播放器 */
+        .player-section { flex: 1; display: flex; background-color: #000; position: relative; min-width: 0; }
         .video-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
         video { width: 100%; height: 100%; display: block; object-fit: contain; }
 
-        /* 右侧控制区 */
+        /* 中间：播放列表 */
+        .playlist-section {
+            width: 280px; background-color: var(--bg-card); border-left: 1px solid var(--border-color);
+            display: none; flex-direction: column; transition: 0.3s;
+        }
+        .playlist-section.show { display: flex; }
+        .playlist-header {
+            padding: 20px 15px 10px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .playlist-header h2 { margin: 0; font-size: 15px; }
+        .playlist-count { font-size: 12px; background: var(--list-active); color: var(--accent-color); padding: 2px 8px; border-radius: 10px; }
+        
+        .playlist-content { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+        
+        /* 分组样式 */
+        .playlist-group { margin-bottom: 6px; }
+        .group-title {
+            background: var(--group-bg); color: var(--text-main); font-size: 12px; font-weight: bold;
+            padding: 8px 10px; border-radius: 4px; cursor: pointer; user-select: none;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .group-title:hover { filter: brightness(1.1); }
+        .group-title::after { content: '▼'; font-size: 10px; transition: transform 0.2s; }
+        .playlist-group.collapsed .group-title::after { transform: rotate(-90deg); }
+        .group-items { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }
+        .playlist-group.collapsed .group-items { display: none; }
+
+        .playlist-item {
+            padding: 8px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+            display: flex; flex-direction: column; gap: 4px; transition: background 0.2s;
+            border-left: 3px solid transparent; margin-left: 4px;
+        }
+        .playlist-item:hover { background: var(--list-hover); }
+        .playlist-item.active { background: var(--list-active); border-left-color: var(--accent-color); }
+        .item-name { font-weight: 600; color: var(--text-main); }
+        .item-url { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+
+        /* 右侧：控制台 */
         .control-section {
-            width: 420px; min-width: 320px; background-color: var(--bg-card);
+            width: 380px; min-width: 320px; background-color: var(--bg-card);
             border-left: 1px solid var(--border-color); display: flex; flex-direction: column;
             overflow-y: auto; padding: 20px; box-sizing: border-box; gap: 16px;
-            transition: background-color 0.3s, border-color 0.3s;
         }
 
-        /* 顶部标题与主题切换 */
         .control-header {
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 4px;
         }
         .control-header h2 { margin: 0; font-size: 16px; }
-        .theme-toggle {
-            background: none; border: 1px solid var(--border-color); color: var(--text-main);
-            border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;
+        
+        .theme-switch-group {
+            display: flex; background: var(--bg-input); border: 1px solid var(--border-color);
+            border-radius: 6px; overflow: hidden;
         }
+        .theme-btn {
+            background: transparent; border: none; color: var(--text-muted);
+            padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .theme-btn.active { background: var(--accent-color); color: white; }
 
         /* 表单控件 */
-        .input-group { display: flex; flex-direction: column; gap: 6px; }
-        .input-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .input-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+        .input-header { display: flex; justify-content: space-between; align-items: center; }
+        .input-header label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .action-link { font-size: 12px; color: var(--accent-color); cursor: pointer; user-select: none; }
+        
         input[type="text"], select, textarea {
             background-color: var(--bg-input); border: 1px solid var(--border-color);
             color: var(--text-main); padding: 8px 10px; border-radius: 6px;
             font-family: monospace; font-size: 12px; outline: none; width: 100%; box-sizing: border-box;
-            transition: border-color 0.2s, background-color 0.3s;
+            transition: all 0.3s ease;
         }
         input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--accent-color); }
-        textarea { resize: vertical; min-height: 60px; }
+        
+        textarea { resize: none; height: 38px; min-height: 38px; overflow: hidden; }
+        textarea.expanded { height: 200px; min-height: 200px; overflow-y: auto; }
 
-        /* 按钮样式 */
+        /* UA 组合框 */
+        .ua-container { display: flex; gap: 8px; }
+        .ua-container select { width: 110px; flex-shrink: 0; }
+
         .btn-row { display: flex; gap: 10px; }
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
-            color: white; border: none; padding: 10px; border-radius: 6px; flex: 1;
-            font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s;
+            color: white; border: none; padding: 12px; border-radius: 6px; 
+            font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s;
+            flex: none; min-height: 42px; width: 100%;
         }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        
         .btn-secondary {
             background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);
-            padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; flex: 1;
+            padding: 8px; border-radius: 6px; font-size: 12px; cursor: pointer; flex: 1; text-align: center;
         }
         .btn-secondary:hover { background: var(--list-hover); }
 
-        /* 播放列表 */
-        .playlist-container {
-            display: none; flex-direction: column; gap: 4px; max-height: 200px;
-            overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;
-            padding: 4px; background: var(--panel-bg);
-        }
-        .playlist-item {
-            padding: 8px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
-            display: flex; flex-direction: column; gap: 4px; transition: background 0.1s;
-        }
-        .playlist-item:hover { background: var(--list-hover); }
-        .playlist-item.active { background: var(--list-active); border-left: 3px solid var(--accent-color); }
-        .item-name { font-weight: bold; color: var(--text-main); }
-        .item-url { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
-
-        /* 面板容器 (信息与日志) */
+        /* 面板与日志 */
         .panel { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; }
         .info-content { font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.6; }
         .highlight { color: var(--accent-color); font-weight: bold; }
 
-        /* 折叠日志面板 */
         .log-panel-container { display: flex; flex-direction: column; overflow: hidden; transition: all 0.3s ease; }
         .log-panel-container.collapsed { height: 36px; min-height: 36px; flex-grow: 0; }
         .log-panel-container.expanded { flex-grow: 1; min-height: 150px; height: auto; }
-        .log-header { 
-            font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between;
-            cursor: pointer; user-select: none;
-        }
+        .log-header { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; cursor: pointer; user-select: none; }
         .log-header span.action { color: var(--accent-color); cursor: pointer; }
         .log-content { flex-grow: 1; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.5; padding-right: 5px; }
         
@@ -140,10 +174,11 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         :root ::-webkit-scrollbar-thumb { background: #334155; }
-        
-        @media (max-width: 800px) {
+
+        @media (max-width: 960px) {
             .app-container { flex-direction: column; overflow-y: auto; }
-            .player-section { flex: none; height: 40vh; }
+            .player-section { flex: none; height: 35vh; }
+            .playlist-section { width: 100%; border-left: none; border-top: 1px solid var(--border-color); height: 30vh; }
             .control-section { width: 100%; flex: 1; border-left: none; border-top: 1px solid var(--border-color); }
         }
     </style>
@@ -157,33 +192,67 @@
             </div>
         </div>
 
+        <div class="playlist-section" id="playlistSection">
+            <div class="playlist-header">
+                <h2>频道列表</h2>
+                <span class="playlist-count" id="playlistCount">0</span>
+            </div>
+            <div id="playlistContainer" class="playlist-content"></div>
+        </div>
+
         <div class="control-section">
             <div class="control-header">
                 <h2>调试中心</h2>
-                <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀️ 亮色模式</button>
+                <div class="theme-switch-group">
+                    <button class="theme-btn active" id="btnDark" onclick="setTheme('dark')">🌙 暗黑</button>
+                    <button class="theme-btn" id="btnLight" onclick="setTheme('light')">☀️ 亮色</button>
+                </div>
             </div>
             
             <div class="input-group">
-                <label>智能导入 / 频道列表</label>
-                <textarea id="importArea" placeholder="粘贴 M3U 文本或普通的多行文本 (包含名称、URL、Key)..."></textarea>
+                <div class="input-header">
+                    <label>智能导入与解析</label>
+                    <span class="action-link" id="expandBtn" onclick="toggleTextarea()">[+] 放大输入框</span>
+                </div>
+                <textarea id="importArea" placeholder="支持 M3U(group-title) 或 TXT(#genre#)..."></textarea>
                 <div class="btn-row">
-                    <button class="btn-secondary" onclick="parseImport()">解析文本</button>
+                    <button class="btn-secondary" onclick="parseImport()">立即解析</button>
                     <input type="file" id="fileImport" accept=".txt,.m3u,.m3u8" style="display:none" onchange="handleFileImport(event)">
                     <button class="btn-secondary" onclick="document.getElementById('fileImport').click()">上传文件</button>
                     <button class="btn-secondary" onclick="clearPlaylist()" style="color:var(--error-color)">清空</button>
                 </div>
             </div>
 
-            <div id="playlistContainer" class="playlist-container"></div>
+            <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 5px 0;">
             
-            <div class="input-group" style="margin-top: 5px;">
-                <label>DASH 流地址</label>
+            <div class="input-group">
+                <label>DASH 流地址 (MPD)</label>
                 <input type="text" id="streamUrl" placeholder="https://...">
             </div>
             <div class="input-group">
                 <label>License Key</label>
                 <input type="text" id="licenseKey" placeholder="kid:key">
             </div>
+            
+            <div class="input-group">
+                <div class="input-header">
+                    <label>User-Agent (伪装头)</label>
+                </div>
+                <div class="ua-container">
+                    <select id="uaPresets" onchange="updateUAInput()">
+                        <option value="">默认 (当前)</option>
+                        <option value="Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1">iPhone</option>
+                        <option value="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.164 Mobile Safari/537.36">Android</option>
+                        <option value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36">Win Chrome</option>
+                        <option value="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15">Mac Safari</option>
+                        <option value="okhttp/4.12.0">OkHttp</option>
+                        <option value="Lavf/60.3.100">FFmpeg/Lavf</option>
+                        <option value="VLC/3.0.20 LibVLC/3.0.20">VLC Player</option>
+                    </select>
+                    <input type="text" id="userAgentInput" placeholder="允许手动修改或粘贴自定义 UA" style="flex:1">
+                </div>
+            </div>
+            
             <button class="btn-primary" onclick="loadAndPlay()">初始化播放</button>
 
             <div class="btn-row">
@@ -199,12 +268,12 @@
             </div>
 
             <div class="panel">
-                <div id="streamInfo" class="info-content">等待流接入...</div>
+                <div id="streamInfo" class="info-content">状态: 等待流接入...</div>
             </div>
 
             <div class="panel log-panel-container collapsed" id="logPanelContainer">
                 <div class="log-header" onclick="toggleLog(event)">
-                    <span>▶ 运行日志 (点击展开)</span> 
+                    <span id="logToggleText">▶ 运行日志 (点击展开)</span> 
                     <span class="action" id="clearLogBtn" onclick="clearLog(event)">[清空]</span>
                 </div>
                 <div id="logContent" class="log-content"></div>
@@ -219,30 +288,56 @@
         let logExpanded = false;
 
         // --- 主题切换 ---
-        function toggleTheme() {
+        function setTheme(theme) {
             const root = document.documentElement;
-            const btn = document.getElementById('themeBtn');
-            if (root.getAttribute('data-theme') === 'light') {
-                root.removeAttribute('data-theme');
-                btn.innerText = '☀️ 亮色模式';
-            } else {
+            const btnDark = document.getElementById('btnDark');
+            const btnLight = document.getElementById('btnLight');
+
+            if (theme === 'light') {
                 root.setAttribute('data-theme', 'light');
-                btn.innerText = '🌙 暗黑模式';
+                btnLight.classList.add('active');
+                btnDark.classList.remove('active');
+            } else {
+                root.removeAttribute('data-theme');
+                btnDark.classList.add('active');
+                btnLight.classList.remove('active');
             }
         }
 
-        // --- 日志系统 (含折叠逻辑) ---
+        // --- UA 及 UI 交互 ---
+        function updateUAInput() {
+            document.getElementById('userAgentInput').value = document.getElementById('uaPresets').value;
+        }
+
+        function toggleTextarea() {
+            const ta = document.getElementById('importArea');
+            const btn = document.getElementById('expandBtn');
+            if (ta.classList.contains('expanded')) {
+                ta.classList.remove('expanded');
+                btn.innerText = '[+] 放大输入框';
+            } else {
+                ta.classList.add('expanded');
+                btn.innerText = '[-] 收起输入框';
+            }
+        }
+
+        function toggleGroup(el) {
+            const groupEl = el.parentElement;
+            groupEl.classList.toggle('collapsed');
+        }
+
+        // --- 日志系统 ---
         function toggleLog(e) {
-            if (e.target.id === 'clearLogBtn') return; // 防止点击清空时触发折叠
+            if (e.target.id === 'clearLogBtn') return;
             logExpanded = !logExpanded;
             const panel = document.getElementById('logPanelContainer');
-            const headerText = panel.querySelector('.log-header span');
+            const toggleText = document.getElementById('logToggleText');
             if (logExpanded) {
-                panel.className = "panel log-panel-container expanded";
-                headerText.innerText = "▼ 运行日志 (点击折叠)";
+                panel.classList.remove('collapsed'); panel.classList.add('expanded');
+                toggleText.innerText = "▼ 运行日志 (点击折叠)";
             } else {
-                panel.className = "panel log-panel-container collapsed";
-                headerText.innerText = "▶ 运行日志 (点击展开)";
+                panel.classList.remove('expanded'); panel.classList.add('collapsed');
+                toggleText.innerText = "▶ 运行日志 (点击展开)";
             }
         }
 
@@ -261,7 +356,7 @@
             document.getElementById('logContent').innerHTML = '';
         }
 
-        // --- 智能解析与播放列表 ---
+        // --- 播放列表解析 (支持 Group) ---
         function handleFileImport(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -271,13 +366,13 @@
                 parseImport();
             };
             reader.readAsText(file);
-            e.target.value = ''; // reset
+            e.target.value = ''; 
         }
 
         function clearPlaylist() {
             playlistData = [];
             document.getElementById('importArea').value = '';
-            document.getElementById('playlistContainer').style.display = 'none';
+            document.getElementById('playlistSection').classList.remove('show');
             document.getElementById('playlistContainer').innerHTML = '';
             addLog("已清空播放列表", "info");
         }
@@ -288,93 +383,172 @@
             
             playlistData = [];
             const lines = text.split('\n').map(l => l.trim());
-            let currentItem = { name: '', url: '', key: '' };
+            let currentItem = { name: '', url: '', key: '', group: '未分组频道' };
+            let currentGroup = '未分组频道'; // 用于记录 TXT 格式的当前分类
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
                 if (!line) continue;
 
+                // 识别 TXT 格式的分类头部 (例如: 央视直播,#genre#)
+                if (line.includes('#genre#')) {
+                    currentGroup = line.split(',')[0].trim();
+                    continue;
+                }
+
                 if (line.startsWith('#EXTINF')) {
-                    let match = line.match(/,(.+)$/);
-                    currentItem.name = match ? match[1].trim() : '未命名频道';
+                    // 提取名称
+                    let nameMatch = line.match(/,(.+)$/);
+                    currentItem.name = nameMatch ? nameMatch[1].trim() : '未命名频道';
+                    
+                    // 提取 M3U 格式的分类 (group-title)
+                    let groupMatch = line.match(/group-title="([^"]+)"/);
+                    if (groupMatch) {
+                        currentItem.group = groupMatch[1].trim();
+                    } else {
+                        currentItem.group = currentGroup; // 如果没匹配到，使用当前大类
+                    }
                 } else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
                     currentItem.key = line.split('=')[1].trim();
                 } else if (line.startsWith('http')) {
                     currentItem.url = line;
                     
-                    // 纯文本容错：尝试抓取上一行作为名称
-                    if (!currentItem.name && i > 0 && !lines[i-1].startsWith('http') && !lines[i-1].startsWith('#')) {
-                        currentItem.name = lines[i-1];
+                    // TXT 格式单行解析 (名称,url)
+                    if (line.includes(',') && !line.startsWith('http')) {
+                       let parts = line.split(',');
+                       if(parts.length >= 2 && parts[1].startsWith('http')) {
+                           currentItem.name = parts[0].trim();
+                           currentItem.url = parts[1].trim();
+                       }
                     }
-                    // 纯文本容错：尝试抓取下一行作为 Key
+
+                    // 纯文本容错：抓上一行当名字
+                    if (!currentItem.name && i > 0 && !lines[i-1].startsWith('http') && !lines[i-1].startsWith('#')) {
+                        // 检查上一行是否是 "名字,url" 格式，如果不是，才作为独立名字
+                        if(!lines[i-1].includes(',')) currentItem.name = lines[i-1];
+                    }
+                    
+                    // 纯文本容错：抓下一行当 Key
                     if (!currentItem.key && i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
                         currentItem.key = lines[i+1];
                         i++; 
                     }
+                    
                     if (!currentItem.name) currentItem.name = '频道 ' + (playlistData.length + 1);
+                    if (!currentItem.group) currentItem.group = currentGroup;
                     
                     playlistData.push({...currentItem});
-                    currentItem = { name: '', url: '', key: '' }; // 重置
+                    // 重置，但保留当前的 TXT 大类状态
+                    currentItem = { name: '', url: '', key: '', group: currentGroup };
                 }
             }
 
             renderPlaylist();
-            addLog(`解析完成，识别到 ${playlistData.length} 个频道`, "success");
+            addLog(`解析完成，共识别 ${playlistData.length} 个频道`, "success");
+            
+            if(document.getElementById('importArea').classList.contains('expanded')){
+                toggleTextarea();
+            }
         }
 
         function renderPlaylist() {
+            const section = document.getElementById('playlistSection');
             const container = document.getElementById('playlistContainer');
+            const count = document.getElementById('playlistCount');
+            
             container.innerHTML = '';
             if (playlistData.length === 0) {
-                container.style.display = 'none';
-                return;
+                section.classList.remove('show'); return;
             }
-            container.style.display = 'flex';
             
-            playlistData.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'playlist-item';
-                div.innerHTML = `<div class="item-name">${item.name}</div><div class="item-url">${item.url}</div>`;
-                div.onclick = () => playFromList(index);
-                container.appendChild(div);
+            section.classList.add('show');
+            count.innerText = playlistData.length + ' 频道';
+            
+            // 按 group 对数据进行二次整理
+            const groupedData = {};
+            playlistData.forEach((item, originalIndex) => {
+                if (!groupedData[item.group]) groupedData[item.group] = [];
+                groupedData[item.group].push({...item, originalIndex});
             });
+
+            // 渲染 DOM
+            for (let groupName in groupedData) {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'playlist-group';
+                
+                // 分组标题栏
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'group-title';
+                titleDiv.innerText = `${groupName} (${groupedData[groupName].length})`;
+                titleDiv.onclick = function() { toggleGroup(this); };
+                
+                // 频道列表容器
+                const itemsDiv = document.createElement('div');
+                itemsDiv.className = 'group-items';
+                
+                groupedData[groupName].forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'playlist-item';
+                    itemDiv.setAttribute('data-index', item.originalIndex); // 记录真实索引
+                    itemDiv.innerHTML = `<div class="item-name">${item.name}</div><div class="item-url">${item.url}</div>`;
+                    itemDiv.onclick = () => playFromList(item.originalIndex);
+                    itemsDiv.appendChild(itemDiv);
+                });
+                
+                groupDiv.appendChild(titleDiv);
+                groupDiv.appendChild(itemsDiv);
+                container.appendChild(groupDiv);
+            }
         }
 
         function playFromList(index) {
-            // 更新 UI 激活状态
+            // 清除旧的高亮
             const items = document.querySelectorAll('.playlist-item');
             items.forEach(el => el.classList.remove('active'));
-            items[index].classList.add('active');
+            
+            // 添加新高亮
+            const activeItem = document.querySelector(`.playlist-item[data-index="${index}"]`);
+            if (activeItem) activeItem.classList.add('active');
 
-            // 填充表单
             const item = playlistData[index];
             document.getElementById('streamUrl').value = item.url;
             document.getElementById('licenseKey').value = item.key;
             
-            addLog(`已选择频道: ${item.name}`, "info");
+            addLog(`加载频道: ${item.name}`, "info");
             loadAndPlay();
         }
 
-        // --- 初始化播放器 ---
+        // --- 初始化播放器及网络拦截 ---
         async function initApp() {
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
                 const video = document.getElementById('videoPlayer');
                 player = new shaka.Player(video);
+                
+                // 注册底层网络请求拦截器，用于注入 User-Agent
+                player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                    const customUA = document.getElementById('userAgentInput').value.trim();
+                    if (customUA) {
+                        request.headers['User-Agent'] = customUA;
+                    }
+                });
+
                 player.addEventListener('error', onErrorEvent);
                 player.addEventListener('trackschanged', updateTrackMenus);
                 addLog("Shaka Player 初始化就绪", "success");
+            } else {
+                addLog("浏览器不支持该核心", "error");
             }
         }
 
         function onErrorEvent(event) {
             const error = event.detail;
-            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥错误`, "error");
-            else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 跨域或403`, "error");
+            if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效/系统拒绝`, "error");
+            else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 跨域限制(CORS)或403`, "error");
             else addLog(`错误: ${error.code}`, "error");
         }
 
-        // --- 轨道菜单 ---
+        // --- 轨道设置 ---
         function updateTrackMenus() {
             const videoSelect = document.getElementById('videoTracks');
             const audioSelect = document.getElementById('audioTracks');
@@ -436,17 +610,18 @@
                 const actualWidth = stats.width || activeTrack.width || '?';
                 const actualHeight = stats.height || activeTrack.height || '?';
                 const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '?';
-                infoDiv.innerHTML = `监控: <span class="highlight">${actualWidth}x${actualHeight}</span> | 视码: <span class="highlight">${vKbps}K</span> (${activeTrack.videoCodec}) | 音码: <span class="highlight">${(activeTrack.audioBandwidth/1000).toFixed(0)}K</span>`;
+                infoDiv.innerHTML = `监控: <span class="highlight">${actualWidth}x${actualHeight}</span> | 视码: <span class="highlight">${vKbps}Kbps</span> | 音码: <span class="highlight">${(activeTrack.audioBandwidth/1000).toFixed(0)}Kbps</span>`;
             }
         }
 
-        // --- 核心播放 ---
+        // --- 核心拉流 ---
         async function loadAndPlay() {
             const url = document.getElementById('streamUrl').value.trim();
             const keyInput = document.getElementById('licenseKey').value.trim();
+            const uaInput = document.getElementById('userAgentInput').value.trim();
             const videoEl = document.getElementById('videoPlayer');
             
-            if (!url) { addLog("地址为空", "error"); return; }
+            if (!url) { addLog("禁止操作: 流地址为空", "error"); return; }
 
             let clearKeysConfig = {};
             if (keyInput) {
@@ -458,9 +633,11 @@
 
             try {
                 if (updateTimer) clearInterval(updateTimer);
-                addLog("正在加载媒体...", "info");
+                addLog("请求 Manifest 文件...", "info");
+                if(uaInput) addLog("注入自定义 UA...", "info");
+                
                 await player.load(url);
-                addLog("加载成功", "success");
+                addLog("媒体流加载成功开始播放", "success");
                 
                 videoEl.play();
                 document.getElementById('videoTracks').value = 'auto';
