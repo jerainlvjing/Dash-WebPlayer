@@ -6,6 +6,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>">
     <title>PRO DASH & HLS Player</title>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/7.1.0/mux.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js"></script>
     
@@ -42,6 +43,57 @@
         
         .shaka-video-container { width: 100%; height: 100%; position: relative; }
         video { width: 100%; height: 100%; display: block; object-fit: contain; }
+
+        /* 👑 网页全屏样式 */
+        .player-section.web-fullscreen {
+            position: fixed !important;
+            top: 0; left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            background-color: #000;
+        }
+
+        /* 👑 强制中文化与自定义按钮样式 */
+        .shaka-resolution-button svg,
+        .shaka-playback-rate-button svg,
+        .shaka-pip-button svg,
+        .shaka-fullscreen-button svg {
+            display: none !important;
+        }
+
+        .shaka-resolution-button::before { content: '分辨率'; }
+        .shaka-playback-rate-button::before { content: '倍速'; }
+        .shaka-pip-button::before { content: '画中画'; }
+        .shaka-fullscreen-button::before { content: '全屏'; }
+
+        .shaka-resolution-button,
+        .shaka-playback-rate-button,
+        .shaka-pip-button,
+        .shaka-fullscreen-button,
+        .custom-ui-btn {
+            width: auto !important;
+            padding: 0 10px !important;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: color 0.2s;
+            height: 100%;
+        }
+        
+        .shaka-resolution-button:hover,
+        .shaka-playback-rate-button:hover,
+        .shaka-pip-button:hover,
+        .shaka-fullscreen-button:hover,
+        .custom-ui-btn:hover {
+            color: var(--accent-color);
+        }
 
         /* 👑 彻底屏蔽 Shaka 原生的垃圾转圈组件 */
         .shaka-spinner-svg, .shaka-spinner-container { display: none !important; opacity: 0 !important; visibility: hidden !important; }
@@ -541,6 +593,43 @@
 
         // --- 初始化播放器 ---
         async function initApp() {
+            // 👑 注册自定义刷新按钮
+            class CustomRefresh extends shaka.ui.Element {
+                constructor(parent, controls) {
+                    super(parent, controls);
+                    this.btn = document.createElement('button');
+                    this.btn.className = 'shaka-button custom-ui-btn';
+                    this.btn.innerText = '刷新';
+                    this.btn.onclick = () => loadAndPlay();
+                    parent.appendChild(this.btn);
+                }
+            }
+            shaka.ui.Controls.registerElement('custom_refresh', new shaka.ui.Element.Factory(CustomRefresh));
+
+            // 👑 注册自定义网页全屏按钮
+            class CustomWebFs extends shaka.ui.Element {
+                constructor(parent, controls) {
+                    super(parent, controls);
+                    this.btn = document.createElement('button');
+                    this.btn.className = 'shaka-button custom-ui-btn';
+                    this.btn.innerText = '网页全屏';
+                    this.isWebFs = false;
+                    this.btn.onclick = () => {
+                        const sec = document.querySelector('.player-section');
+                        this.isWebFs = !this.isWebFs;
+                        if (this.isWebFs) {
+                            sec.classList.add('web-fullscreen');
+                            this.btn.innerText = '退出网页';
+                        } else {
+                            sec.classList.remove('web-fullscreen');
+                            this.btn.innerText = '网页全屏';
+                        }
+                    };
+                    parent.appendChild(this.btn);
+                }
+            }
+            shaka.ui.Controls.registerElement('custom_web_fs', new shaka.ui.Element.Factory(CustomWebFs));
+
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
                 const video = document.getElementById('videoPlayer');
@@ -549,17 +638,25 @@
                 player = new shaka.Player(video);
                 ui = new shaka.ui.Overlay(player, videoContainer, video);
                 
+                // 👑 重新编排界面按钮元素及关闭左键暂停
                 ui.configure({
+                    singleClickForPlayAndPause: false, // 屏蔽播放器区域单击左键暂停
+                    doubleClickForFullscreen: true,    // 保持双击全屏
                     controlPanelElements: [
                         'play_pause',
-                        'time_and_duration',
+                        'custom_refresh',     // 自定义刷新按钮
+                        'time_and_duration',  // 时间线
                         'spacer',
-                        'mute',
-                        'volume',
-                        'fullscreen',
-                        'overflow_menu'
+                        'quality',            // Shaka内置原生分辨率（通过CSS转文字）
+                        'playback_rate',      // 倍速
+                        'picture_in_picture', // 画中画
+                        'custom_web_fs',      // 网页全屏
+                        'fullscreen'          // 全屏
                     ]
                 });
+                
+                // 强制将内部原生菜单（比如分辨率菜单内的数字和标签）汉化
+                ui.getControls().getLocalization().changeLocale('zh-CN');
                 
                 player.addEventListener('error', onErrorEvent);
                 player.addEventListener('trackschanged', updateTrackMenus);
