@@ -6,27 +6,21 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>">
     <title>PRO DASH & HLS Player</title>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/7.1.0/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js"></script>
     
     <style>
         /* 纯暗黑主题 */
         :root {
-            --bg-body: #0b0f19;
-            --bg-card: #151c2c;
-            --bg-input: #1e2638;
-            --border-color: #2a3441;
-            --text-main: #e2e8f0;
-            --text-muted: #94a3b8;
-            --accent-color: #3b82f6;
-            --accent-hover: #2563eb;
-            --error-color: #ef4444;
-            --success-color: #10b981;
-            --list-hover: #1e293b;
-            --list-active: rgba(59, 130, 246, 0.15);
-            --panel-bg: #020617;
-            --group-bg: #111827;
+            --bg-body: #0b0f19; --bg-card: #151c2c; --bg-input: #1e2638;
+            --border-color: #2a3441; --text-main: #e2e8f0; --text-muted: #94a3b8;
+            --accent-color: #3b82f6; --accent-hover: #2563eb;
+            --error-color: #ef4444; --success-color: #10b981;
+            --list-hover: #1e293b; --list-active: rgba(59, 130, 246, 0.15);
+            --panel-bg: #020617; --group-bg: #111827;
         }
 
         body, html {
@@ -46,70 +40,60 @@
 
         /* 👑 网页全屏样式 */
         .player-section.web-fullscreen {
-            position: fixed !important;
-            top: 0; left: 0;
-            width: 100vw !important;
-            height: 100vh !important;
-            z-index: 9999 !important;
-            background-color: #000;
+            position: fixed !important; top: 0; left: 0;
+            width: 100vw !important; height: 100vh !important;
+            z-index: 9999 !important; background-color: #000;
         }
 
-        /* 👑 强制修复中文按钮字体与尺寸，屏蔽原生图标渲染 */
-        .shaka-resolution-button svg,
+        /* 👑 UI 控制条底栏对齐修复 */
+        .shaka-bottom-controls { align-items: center !important; }
+        .shaka-time-and-duration {
+            display: flex !important; align-items: center !important;
+            margin: 0 10px !important; padding: 0 !important;
+            font-size: 13px !important; font-family: monospace; line-height: 1 !important;
+        }
+
+        /* 👑 强制屏蔽部分不需要图标的按钮的原生 SVG */
         .shaka-playback-rate-button svg,
-        .shaka-pip-button svg,
-        .shaka-fullscreen-button svg {
-            display: none !important;
-        }
+        .shaka-pip-button svg { display: none !important; }
 
-        .shaka-resolution-button::before { content: '分辨率'; }
         .shaka-playback-rate-button::before { content: '倍速'; }
         .shaka-pip-button::before { content: '画中画'; }
-        .shaka-fullscreen-button::before { content: '全屏'; }
 
-        /* 修复字体乱码与大小不一 */
-        .shaka-resolution-button,
-        .shaka-playback-rate-button,
-        .shaka-pip-button,
-        .shaka-fullscreen-button,
-        .custom-ui-btn {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-            font-size: 13px !important;
-            font-weight: 500 !important;
-            color: var(--text-main) !important;
-            width: auto !important;
-            padding: 0 10px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            transition: color 0.2s;
-            line-height: 1 !important;
-            letter-spacing: normal !important;
-            text-transform: none !important;
-            height: 100%;
+        /* 👑 分辨率、全屏等按钮样式（图标在前，文字在后） */
+        .shaka-resolution-button, .shaka-fullscreen-button {
+            display: flex !important; flex-direction: row !important;
+            align-items: center !important; gap: 4px !important;
         }
         
-        .shaka-resolution-button:hover,
-        .shaka-playback-rate-button:hover,
-        .shaka-pip-button:hover,
-        .shaka-fullscreen-button:hover,
-        .custom-ui-btn:hover {
-            color: var(--accent-color) !important;
+        /* 确保原生 SVG 正常显示 */
+        .shaka-resolution-button svg, .shaka-fullscreen-button svg {
+            display: block !important; width: 20px; height: 20px;
         }
 
-        /* 👑 刷新按钮样式 */
-        .custom-refresh-btn svg {
-            width: 20px; height: 20px; fill: currentColor;
-            transition: transform 0.3s ease;
-        }
-        .custom-refresh-btn:hover svg {
-            transform: rotate(90deg);
-        }
+        /* 添加后置文字 */
+        .shaka-resolution-button::after { content: '分辨率'; }
+        .shaka-fullscreen-button::after { content: '全屏'; }
 
-        /* 👑 全新定制的现代化加载动画 */
+        /* 统一的按钮样式配置 */
+        .shaka-resolution-button, .shaka-playback-rate-button,
+        .shaka-pip-button, .shaka-fullscreen-button, .custom-ui-btn {
+            font-family: 'Inter', sans-serif !important;
+            font-size: 13px !important; font-weight: 500 !important;
+            color: var(--text-main) !important; width: auto !important;
+            padding: 0 10px !important; display: flex !important;
+            align-items: center !important; justify-content: center !important;
+            background: transparent; border: none; cursor: pointer; transition: color 0.2s;
+            line-height: 1 !important; height: 100%;
+        }
+        
+        .shaka-button:hover, .custom-ui-btn:hover { color: var(--accent-color) !important; }
+
+        /* 👑 刷新按钮动画 */
+        .custom-refresh-btn svg { transition: transform 0.3s ease; }
+        .custom-refresh-btn:hover svg { transform: rotate(90deg); }
+
+        /* 👑 现代化加载动画 */
         .shaka-spinner-svg, .shaka-spinner-container { display: none !important; opacity: 0 !important; visibility: hidden !important; }
         .custom-spinner {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -138,9 +122,7 @@
         }
         .playlist-header h2 { margin: 0; font-size: 15px; }
         .playlist-count { font-size: 12px; background: var(--list-active); color: var(--accent-color); padding: 2px 8px; border-radius: 10px; font-weight: bold; }
-        
         .playlist-content { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
-        
         .playlist-group { margin-bottom: 8px; }
         .group-title {
             background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), transparent);
@@ -153,7 +135,6 @@
         .playlist-group.collapsed .group-title::after { transform: rotate(-90deg); }
         .group-items { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; }
         .playlist-group.collapsed .group-items { display: none; }
-
         .playlist-item {
             padding: 8px 10px; border-radius: 6px; cursor: pointer;
             display: flex; flex-direction: row; align-items: center; gap: 10px;
@@ -161,14 +142,12 @@
         }
         .playlist-item:hover { background: var(--list-hover); }
         .playlist-item.active { background: var(--list-active); border-color: rgba(59, 130, 246, 0.4); }
-        
         .item-logo-box {
             width: 38px; height: 26px; border-radius: 4px; background: rgba(128,128,128,0.1);
             display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;
         }
         .item-logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .item-logo-box span { font-size: 14px; opacity: 0.5; }
-        
         .item-info { display: flex; flex-direction: column; gap: 3px; overflow: hidden; flex: 1; }
         .item-name { font-weight: 600; color: var(--text-main); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .item-url { font-size: 10px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
@@ -179,13 +158,8 @@
             border-left: 1px solid var(--border-color); display: flex; flex-direction: column;
             overflow-y: auto; padding: 20px; box-sizing: border-box; gap: 16px;
         }
-
-        .control-header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 4px;
-        }
+        .control-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 4px; }
         .control-header h2 { margin: 0; font-size: 16px; }
-
         .input-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
         .input-header { display: flex; justify-content: space-between; align-items: center; }
         .input-header label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
@@ -195,11 +169,9 @@
         input[type="text"], select, textarea {
             background-color: var(--bg-input); border: 1px solid var(--border-color);
             color: var(--text-main); padding: 8px 10px; border-radius: 6px;
-            font-family: monospace; font-size: 12px; outline: none; width: 100%; box-sizing: border-box;
-            transition: all 0.3s ease;
+            font-family: monospace; font-size: 12px; outline: none; width: 100%; box-sizing: border-box; transition: all 0.3s ease;
         }
         input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--accent-color); }
-        
         textarea { resize: none; height: 38px; min-height: 38px; overflow: hidden; }
         textarea.expanded { height: 180px; min-height: 180px; overflow-y: auto; }
 
@@ -215,12 +187,7 @@
             flex: none; min-height: 42px; width: 100%;
         }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
-        
-        .btn-secondary {
-            background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color);
-            padding: 8px; border-radius: 6px; font-size: 12px; cursor: pointer; flex: 1; text-align: center;
-            white-space: nowrap;
-        }
+        .btn-secondary { background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; font-size: 12px; cursor: pointer; flex: 1; text-align: center; white-space: nowrap; }
         .btn-secondary:hover { background: var(--list-hover); border-color: var(--text-muted); }
 
         .panel { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; }
@@ -230,17 +197,14 @@
         .log-panel-container { display: flex; flex-direction: column; transition: all 0.3s ease; }
         .log-panel-container.collapsed { height: 36px; min-height: 36px; flex-grow: 0; padding-bottom: 0; overflow: hidden; }
         .log-panel-container.collapsed .log-content { display: none; }
-        
         .log-panel-container.expanded { flex-grow: 1; min-height: 140px; height: auto; }
         .log-header { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; cursor: pointer; user-select: none; }
         .log-header span.action { color: var(--accent-color); cursor: pointer; }
         .log-content { flex-grow: 1; overflow-y: auto; font-family: monospace; font-size: 11px; line-height: 1.5; padding-right: 5px; }
-        
         .log-time { color: #64748b; margin-right: 6px; }
         .log-info { color: var(--text-muted); }
         .log-success { color: var(--success-color); }
         .log-error { color: var(--error-color); font-weight: bold; }
-        .log-warning { color: var(--warning-color); }
 
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -278,24 +242,39 @@
         <div class="control-section">
             <div class="control-header">
                 <h2>调试中心</h2>
-                </div>
+                <span class="action-link" style="color:var(--error-color)" onclick="clearLocalCache()">[🗑️ 清除所有缓存]</span>
+            </div>
             
+            <div class="input-group">
+                <div class="input-header">
+                    <label>播放核心引擎</label>
+                </div>
+                <select id="playerCore" onchange="saveConfig()">
+                    <option value="shaka">Shaka Player (默认推荐)</option>
+                    <option value="hlsjs">hls.js</option>
+                    <option value="dashjs">dash.js</option>
+                </select>
+                <div class="input-hint" style="text-align:left; color:#64748b;">💡 Shaka与dash.js擅长解析MPD，hls.js播放M3U8兼容性更好</div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px dashed var(--border-color); margin: 5px 0;">
+
             <div class="input-group">
                 <div class="input-header">
                     <label>批量导入 (支持 M3U / TXT)</label>
                     <span class="action-link" id="expandBtn" onclick="toggleTextarea()">[-] 收起输入框</span>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" id="urlImportInput" placeholder="输入 http(s):// 结尾的订阅链接..." style="flex:1">
+                    <input type="text" id="urlImportInput" placeholder="输入 http(s):// 结尾的订阅链接..." style="flex:1" oninput="saveConfig()">
                     <button class="btn-secondary" onclick="fetchPlaylist()" style="flex:none; width: 60px;">拉取</button>
                 </div>
                 
-                <textarea id="importArea" class="expanded" placeholder="支持 M3U(含 tvg-logo, group-title) 或 TXT(#genre#)..."></textarea>
+                <textarea id="importArea" class="expanded" placeholder="支持 M3U(含 tvg-logo, group-title) 或 TXT(#genre#)..." oninput="saveConfig()"></textarea>
                 <div class="btn-row">
                     <button class="btn-secondary" onclick="parseImport()" style="background:var(--list-active); color:var(--accent-color); border-color:transparent;">直接解析</button>
                     <input type="file" id="fileImport" accept=".txt,.m3u,.m3u8" style="display:none" onchange="handleFileImport(event)">
                     <button class="btn-secondary" onclick="document.getElementById('fileImport').click()">本地文件</button>
-                    <button class="btn-secondary" onclick="clearPlaylist()" style="color:var(--error-color)">清空</button>
+                    <button class="btn-secondary" onclick="clearPlaylist()" style="color:var(--error-color)">清空列表</button>
                 </div>
             </div>
 
@@ -303,15 +282,15 @@
             
             <div class="input-group">
                 <label>媒体流地址 (.mpd 或 .m3u8)</label>
-                <input type="text" id="streamUrl" placeholder="https://...">
+                <input type="text" id="streamUrl" placeholder="https://..." oninput="saveConfig()">
             </div>
             <div class="input-group">
                 <label>License Key (加密频道专用)</label>
-                <input type="text" id="licenseKey" placeholder="kid:key (无加密留空)">
+                <input type="text" id="licenseKey" placeholder="kid:key (无加密留空)" oninput="saveConfig()">
             </div>
             
             <div class="checkbox-group" onclick="document.getElementById('forceHQ').click()">
-                <input type="checkbox" id="forceHQ" checked onclick="event.stopPropagation()">
+                <input type="checkbox" id="forceHQ" checked onclick="event.stopPropagation(); saveConfig()">
                 <label for="forceHQ">默认加载最高画质 (关闭自适应)</label>
             </div>
             
@@ -320,15 +299,12 @@
             <div class="btn-row">
                 <div class="input-group" style="flex:1">
                     <select id="videoTracks" onchange="onVideoTrackChange()" disabled><option value="auto">自动画质</option></select>
-                    <div class="input-hint">选择画面清晰度</div>
                 </div>
                 <div class="input-group" style="flex:1">
                     <select id="audioTracks" onchange="onAudioTrackChange()" disabled><option value="auto">默认音频</option></select>
-                    <div class="input-hint">切换多语言音轨</div>
                 </div>
                 <div class="input-group" style="flex:1">
                     <select id="textTracks" onchange="onTextTrackChange()" disabled><option value="off">关闭字幕</option></select>
-                    <div class="input-hint">选择内嵌字幕</div>
                 </div>
             </div>
 
@@ -353,9 +329,56 @@
         let playlistData = [];
         let logExpanded = true; 
         
-        // 全局 HLS.js 实例（专为 m3u8 接管使用）
+        // 多核心实例变量
         window.hlsInstance = null;
+        window.dashInstance = null;
 
+        // --- 核心缓存逻辑 ---
+        function saveConfig() {
+            const config = {
+                core: document.getElementById('playerCore').value,
+                importUrl: document.getElementById('urlImportInput').value,
+                importText: document.getElementById('importArea').value,
+                streamUrl: document.getElementById('streamUrl').value,
+                licenseKey: document.getElementById('licenseKey').value,
+                forceHQ: document.getElementById('forceHQ').checked,
+                playlist: playlistData
+            };
+            localStorage.setItem('ProPlayerCache', JSON.stringify(config));
+        }
+
+        function loadLocalCache() {
+            try {
+                const cacheStr = localStorage.getItem('ProPlayerCache');
+                if (cacheStr) {
+                    const config = JSON.parse(cacheStr);
+                    if(config.core) document.getElementById('playerCore').value = config.core;
+                    if(config.importUrl) document.getElementById('urlImportInput').value = config.importUrl;
+                    if(config.importText) document.getElementById('importArea').value = config.importText;
+                    if(config.streamUrl) document.getElementById('streamUrl').value = config.streamUrl;
+                    if(config.licenseKey) document.getElementById('licenseKey').value = config.licenseKey;
+                    if(config.forceHQ !== undefined) document.getElementById('forceHQ').checked = config.forceHQ;
+                    
+                    if(config.playlist && config.playlist.length > 0) {
+                        playlistData = config.playlist;
+                        renderPlaylist();
+                    }
+                    addLog("已读取本地配置缓存", "success");
+                }
+            } catch (e) {
+                console.error("缓存读取失败", e);
+            }
+        }
+
+        function clearLocalCache() {
+            if(confirm('确定要清除所有缓存的播放列表和配置吗？')) {
+                localStorage.removeItem('ProPlayerCache');
+                addLog("缓存已清空，页面即将刷新...", "info");
+                setTimeout(() => location.reload(), 1000);
+            }
+        }
+
+        // --- UI 控制辅助 ---
         function toggleSpinner(show) {
             const spinner = document.getElementById('customSpinner');
             if(show) spinner.classList.add('show');
@@ -366,18 +389,13 @@
             const ta = document.getElementById('importArea');
             const btn = document.getElementById('expandBtn');
             if (ta.classList.contains('expanded')) {
-                ta.classList.remove('expanded');
-                btn.innerText = '[+] 展开输入框';
+                ta.classList.remove('expanded'); btn.innerText = '[+] 展开输入框';
             } else {
-                ta.classList.add('expanded');
-                btn.innerText = '[-] 收起输入框';
+                ta.classList.add('expanded'); btn.innerText = '[-] 收起输入框';
             }
         }
 
-        function toggleGroup(el) {
-            const groupEl = el.parentElement;
-            groupEl.classList.toggle('collapsed');
-        }
+        function toggleGroup(el) { el.parentElement.classList.toggle('collapsed'); }
 
         function toggleLog(e) {
             if (e.target.id === 'clearLogBtn') return;
@@ -400,33 +418,24 @@
             const p = document.createElement('div');
             p.innerHTML = `<span class="log-time">[${timeStr}]</span> <span class="log-${type}">${msg}</span>`;
             logBox.appendChild(p);
-            
-            if(logBox.childElementCount > 100) {
-                logBox.removeChild(logBox.firstChild);
-            }
+            if(logBox.childElementCount > 100) logBox.removeChild(logBox.firstChild);
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        function clearLog(e) {
-            if(e) e.stopPropagation();
-            document.getElementById('logContent').innerHTML = '';
-        }
+        function clearLog(e) { if(e) e.stopPropagation(); document.getElementById('logContent').innerHTML = ''; }
 
+        // --- 播放列表解析 ---
         async function fetchPlaylist() {
             const url = document.getElementById('urlImportInput').value.trim();
             if (!url) { addLog("请输入网络订阅链接", "warning"); return; }
-            
             addLog(`正在拉取网络列表: ${url}...`, "info");
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`HTTP 状态码 ${res.status}`);
-                const text = await res.text();
-                document.getElementById('importArea').value = text;
+                document.getElementById('importArea').value = await res.text();
                 addLog("拉取成功，正在解析...", "success");
                 parseImport();
-            } catch (e) {
-                addLog(`拉取失败，可能是跨域(CORS)拦截或链接失效: ${e.message}`, "error");
-            }
+            } catch (e) { addLog(`拉取失败: ${e.message}`, "error"); }
         }
 
         function handleFileImport(e) {
@@ -447,13 +456,13 @@
             document.getElementById('urlImportInput').value = '';
             document.getElementById('playlistSection').classList.remove('show');
             document.getElementById('playlistContainer').innerHTML = '';
+            saveConfig();
             addLog("已清空播放列表", "info");
         }
 
         function parseImport() {
             const text = document.getElementById('importArea').value.trim();
             if (!text) return;
-            
             playlistData = [];
             const lines = text.split('\n').map(l => l.trim());
             let currentItem = { name: '', url: '', key: '', group: '未分类频道', logo: '' };
@@ -462,75 +471,48 @@
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
                 if (!line) continue;
-
-                if (line.includes('#genre#')) {
-                    currentGroup = line.split(',')[0].trim();
-                    continue;
-                }
+                if (line.includes('#genre#')) { currentGroup = line.split(',')[0].trim(); continue; }
 
                 if (line.startsWith('#EXTINF')) {
                     let nameMatch = line.match(/,(.+)$/);
                     currentItem.name = nameMatch ? nameMatch[1].trim() : '未命名频道';
-                    
                     let groupMatch = line.match(/group-title="([^"]+)"/);
-                    if (groupMatch) currentItem.group = groupMatch[1].trim();
-                    else currentItem.group = currentGroup; 
-                    
+                    currentItem.group = groupMatch ? groupMatch[1].trim() : currentGroup; 
                     let logoMatch = line.match(/tvg-logo="([^"]+)"/);
                     if (logoMatch) currentItem.logo = logoMatch[1].trim();
-
                 } else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
                     currentItem.key = line.split('=')[1].trim();
                 } else if (line.startsWith('http')) {
                     currentItem.url = line;
-                    
                     if (line.includes(',') && !line.startsWith('http')) {
                        let parts = line.split(',');
-                       if(parts.length >= 2 && parts[1].startsWith('http')) {
-                           currentItem.name = parts[0].trim();
-                           currentItem.url = parts[1].trim();
-                       }
+                       if(parts.length >= 2 && parts[1].startsWith('http')) { currentItem.name = parts[0].trim(); currentItem.url = parts[1].trim(); }
                     }
-
                     if (!currentItem.name && i > 0 && !lines[i-1].startsWith('http') && !lines[i-1].startsWith('#')) {
                         if(!lines[i-1].includes(',')) currentItem.name = lines[i-1];
                     }
-                    
                     if (!currentItem.key && i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
-                        currentItem.key = lines[i+1];
-                        i++; 
+                        currentItem.key = lines[i+1]; i++; 
                     }
-                    
                     if (!currentItem.name) currentItem.name = '频道 ' + (playlistData.length + 1);
                     if (!currentItem.group) currentItem.group = currentGroup;
-                    
                     playlistData.push({...currentItem});
                     currentItem = { name: '', url: '', key: '', group: currentGroup, logo: '' };
                 }
             }
-
             renderPlaylist();
+            saveConfig();
             addLog(`解析完成，共识别 ${playlistData.length} 个频道`, "success");
-            
-            if(document.getElementById('importArea').classList.contains('expanded')){
-                toggleTextarea();
-            }
-
-            if(playlistData.length > 0) {
-                playFromList(0); // 自动播放
-            }
+            if(document.getElementById('importArea').classList.contains('expanded')) toggleTextarea();
+            if(playlistData.length > 0) playFromList(0);
         }
 
         function renderPlaylist() {
             const section = document.getElementById('playlistSection');
             const container = document.getElementById('playlistContainer');
             const count = document.getElementById('playlistCount');
-            
             container.innerHTML = '';
-            if (playlistData.length === 0) {
-                section.classList.remove('show'); return;
-            }
-            
+            if (playlistData.length === 0) { section.classList.remove('show'); return; }
             section.classList.add('show');
             count.innerText = playlistData.length + ' 频道';
             
@@ -541,62 +523,41 @@
             });
 
             for (let groupName in groupedData) {
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'playlist-group';
-                
-                const titleDiv = document.createElement('div');
-                titleDiv.className = 'group-title';
+                const groupDiv = document.createElement('div'); groupDiv.className = 'playlist-group';
+                const titleDiv = document.createElement('div'); titleDiv.className = 'group-title';
                 titleDiv.innerText = `${groupName} (${groupedData[groupName].length})`;
                 titleDiv.onclick = function() { toggleGroup(this); };
-                
-                const itemsDiv = document.createElement('div');
-                itemsDiv.className = 'group-items';
+                const itemsDiv = document.createElement('div'); itemsDiv.className = 'group-items';
                 
                 groupedData[groupName].forEach(item => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'playlist-item';
+                    const itemDiv = document.createElement('div'); itemDiv.className = 'playlist-item';
                     itemDiv.setAttribute('data-index', item.originalIndex); 
-                    
-                    const logoHtml = item.logo 
-                        ? `<img src="${item.logo}" onerror="this.parentElement.innerHTML='<span>📺</span>'">` 
-                        : `<span>📺</span>`;
-                        
-                    itemDiv.innerHTML = `
-                        <div class="item-logo-box">${logoHtml}</div>
-                        <div class="item-info">
-                            <div class="item-name">${item.name}</div>
-                            <div class="item-url">${item.url}</div>
-                        </div>`;
+                    const logoHtml = item.logo ? `<img src="${item.logo}" onerror="this.parentElement.innerHTML='<span>📺</span>'">` : `<span>📺</span>`;
+                    itemDiv.innerHTML = `<div class="item-logo-box">${logoHtml}</div><div class="item-info"><div class="item-name">${item.name}</div><div class="item-url">${item.url}</div></div>`;
                     itemDiv.onclick = () => playFromList(item.originalIndex);
                     itemsDiv.appendChild(itemDiv);
                 });
-                
-                groupDiv.appendChild(titleDiv);
-                groupDiv.appendChild(itemsDiv);
-                container.appendChild(groupDiv);
+                groupDiv.appendChild(titleDiv); groupDiv.appendChild(itemsDiv); container.appendChild(groupDiv);
             }
         }
 
         function playFromList(index) {
-            const items = document.querySelectorAll('.playlist-item');
-            items.forEach(el => el.classList.remove('active'));
-            
+            document.querySelectorAll('.playlist-item').forEach(el => el.classList.remove('active'));
             const activeItem = document.querySelector(`.playlist-item[data-index="${index}"]`);
-            if (activeItem) {
-                activeItem.classList.add('active');
-                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }
-
+            if (activeItem) { activeItem.classList.add('active'); activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
             const item = playlistData[index];
             document.getElementById('streamUrl').value = item.url;
             document.getElementById('licenseKey').value = item.key || ''; 
-            
+            saveConfig();
             addLog(`请求播放频道: ${item.name}`, "info");
             loadAndPlay();
         }
 
+        // --- 初始化应用底层 ---
         async function initApp() {
-            // 👑 修复1：自定义刷新图标按钮（无需中文）
+            loadLocalCache();
+
+            // 👑 注册刷新图标按钮 (仅图标)
             class CustomRefresh extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
@@ -610,23 +571,23 @@
             class CustomRefreshFactory { create(parent, controls) { return new CustomRefresh(parent, controls); } }
             shaka.ui.Controls.registerElement('custom_refresh', new CustomRefreshFactory());
 
-            // 👑 修复2：网页全屏按钮
+            // 👑 注册网页全屏图标+文字按钮
             class CustomWebFs extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
                     this.btn = document.createElement('button');
                     this.btn.className = 'shaka-button custom-ui-btn';
-                    this.btn.innerText = '网页全屏';
+                    this.btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:currentColor;margin-right:4px;"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg><span>网页全屏</span>`;
                     this.isWebFs = false;
                     this.btn.onclick = () => {
                         const sec = document.querySelector('.player-section');
                         this.isWebFs = !this.isWebFs;
                         if (this.isWebFs) {
                             sec.classList.add('web-fullscreen');
-                            this.btn.innerText = '退出网页';
+                            this.btn.querySelector('span').innerText = '退出网页';
                         } else {
                             sec.classList.remove('web-fullscreen');
-                            this.btn.innerText = '网页全屏';
+                            this.btn.querySelector('span').innerText = '网页全屏';
                         }
                     };
                     parent.appendChild(this.btn);
@@ -634,37 +595,6 @@
             }
             class CustomWebFsFactory { create(parent, controls) { return new CustomWebFs(parent, controls); } }
             shaka.ui.Controls.registerElement('custom_web_fs', new CustomWebFsFactory());
-
-            // 👑 修复3：自定义底层监听的时间轴，解决 Shaka 原生时间卡死问题
-            class CustomTime extends shaka.ui.Element {
-                constructor(parent, controls) {
-                    super(parent, controls);
-                    this.div = document.createElement('div');
-                    this.div.style.color = '#e2e8f0';
-                    this.div.style.fontSize = '12px';
-                    this.div.style.margin = '0 10px';
-                    this.div.style.fontFamily = 'monospace';
-                    this.div.innerText = '00:00 / 00:00';
-                    parent.appendChild(this.div);
-
-                    this.video = controls.getVideo();
-                    this.eventManager.listen(this.video, 'timeupdate', () => this.updateTime());
-                }
-                updateTime() {
-                    const format = (seconds) => {
-                        if (isNaN(seconds) || seconds === Infinity) return 'Live';
-                        const h = Math.floor(seconds / 3600);
-                        const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
-                        const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-                        return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
-                    };
-                    let duration = this.video.duration;
-                    if (window.hlsInstance && window.hlsInstance.liveSyncPosition) duration = Infinity;
-                    this.div.innerText = `${format(this.video.currentTime)} / ${format(duration)}`;
-                }
-            }
-            class CustomTimeFactory { create(parent, controls) { return new CustomTime(parent, controls); } }
-            shaka.ui.Controls.registerElement('custom_time', new CustomTimeFactory());
 
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
@@ -675,12 +605,12 @@
                 ui = new shaka.ui.Overlay(player, videoContainer, video);
                 
                 ui.configure({
-                    singleClickForPlayAndPause: false, // 屏蔽区域点击暂停
+                    singleClickForPlayAndPause: false, 
                     doubleClickForFullscreen: true,
                     controlPanelElements: [
                         'play_pause',
                         'custom_refresh',     
-                        'custom_time',        // 换下 Shaka 原生的 time_and_duration
+                        'time_and_duration',  // 恢复 Shaka 原生时间线
                         'spacer',
                         'quality',            
                         'playback_rate',      
@@ -694,31 +624,116 @@
                 player.addEventListener('trackschanged', updateTrackMenus);
                 player.addEventListener('buffering', (e) => toggleSpinner(e.buffering));
 
-                // 监听原生视频缓冲状态，兼顾 HLS.js
                 video.addEventListener('waiting', () => toggleSpinner(true));
                 video.addEventListener('playing', () => toggleSpinner(false));
 
                 addLog("核心 UI 挂载就绪", "success");
-            } else {
-                addLog("浏览器不支持该核心", "error");
-            }
+            } else { addLog("浏览器不支持该核心", "error"); }
         }
 
         function onErrorEvent(event) {
-            const error = event.detail;
-            toggleSpinner(false);
+            const error = event.detail; toggleSpinner(false);
             if (error && error.code) {
                 if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效`, "error");
                 else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: CORS 或 403`, "error");
                 else addLog(`错误代码: ${error.code}`, "error");
-            } else {
-                addLog(`播放异常: ${error}`, "error");
+            } else { addLog(`播放异常: ${error}`, "error"); }
+        }
+
+        // --- 核心清理机制 ---
+        async function destroyAllPlayers() {
+            const videoEl = document.getElementById('videoPlayer');
+            if (window.hlsInstance) { window.hlsInstance.destroy(); window.hlsInstance = null; }
+            if (window.dashInstance) { window.dashInstance.destroy(); window.dashInstance = null; }
+            if (player) { await player.unload(); }
+            videoEl.removeAttribute('src'); videoEl.load();
+        }
+
+        // --- 多核心播放拉流 ---
+        async function loadAndPlay() {
+            saveConfig();
+            const url = document.getElementById('streamUrl').value.trim();
+            const keyInput = document.getElementById('licenseKey').value.trim();
+            const forceHQ = document.getElementById('forceHQ').checked;
+            const coreSelect = document.getElementById('playerCore').value;
+            const videoEl = document.getElementById('videoPlayer');
+            
+            if (!url) { addLog("禁止操作: 流地址为空", "error"); return; }
+            if (updateTimer) clearInterval(updateTimer);
+
+            await destroyAllPlayers(); // 切换引擎前清理干净内存
+
+            try {
+                toggleSpinner(true);
+                
+                if (coreSelect === 'hlsjs') {
+                    // --- HLS.js 引擎 ---
+                    if (typeof Hls === 'undefined' || !Hls.isSupported()) throw new Error("环境不支持 hls.js");
+                    window.hlsInstance = new Hls({ maxBufferLength: 30, maxMaxBufferLength: 60 });
+                    window.hlsInstance.loadSource(url);
+                    window.hlsInstance.attachMedia(videoEl);
+                    window.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                        toggleSpinner(false); videoEl.play(); addLog(`hls.js 引擎接管播放成功`, "success");
+                        document.getElementById('videoTracks').innerHTML = '<option value="auto">HLS 原生画质</option>';
+                    });
+                    window.hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) { toggleSpinner(false); addLog(`hls.js 致命错误: ${data.type}`, "error"); }
+                    });
+
+                } else if (coreSelect === 'dashjs') {
+                    // --- Dash.js 引擎 ---
+                    if (typeof dashjs === 'undefined') throw new Error("环境不支持 dash.js");
+                    window.dashInstance = dashjs.MediaPlayer().create();
+                    
+                    if (keyInput) {
+                        const parts = keyInput.replace(/-/g, '').split(':');
+                        if (parts.length === 2) {
+                            window.dashInstance.setProtectionData({
+                                "org.w3.clearkey": { "clearkeys": { [parts[0]]: parts[1] } }
+                            });
+                        }
+                    }
+                    window.dashInstance.initialize(videoEl, url, true);
+                    window.dashInstance.on(dashjs.MediaPlayer.events.PLAYBACK_PLAYING, () => {
+                        toggleSpinner(false); addLog(`dash.js 引擎接管播放成功`, "success");
+                        document.getElementById('videoTracks').innerHTML = '<option value="auto">Dash.js 原生画质</option>';
+                    });
+
+                } else {
+                    // --- Shaka Player 引擎 (默认) ---
+                    let clearKeysConfig = {};
+                    if (keyInput) {
+                        const parts = keyInput.replace(/-/g, '').split(':');
+                        if (parts.length === 2) clearKeysConfig[parts[0]] = parts[1];
+                    }
+                    player.configure({ drm: { clearKeys: Object.keys(clearKeysConfig).length > 0 ? clearKeysConfig : {} }, abr: { enabled: true }});
+                    await player.load(url);
+                    toggleSpinner(false); addLog(`Shaka 引擎解析流加载成功`, "success");
+
+                    if (forceHQ) {
+                        const tracks = player.getVariantTracks();
+                        const highestTrack = tracks.filter(t => t.height).sort((a, b) => b.bandwidth - a.bandwidth)[0];
+                        if (highestTrack) {
+                            player.configure({ abr: { enabled: false } }); 
+                            player.selectVariantTrack(highestTrack, true);
+                            addLog(`自动锁定最高画质: ${highestTrack.height}p`, "success");
+                            setTimeout(() => { document.getElementById('videoTracks').value = highestTrack.id; }, 200);
+                        }
+                    } else { document.getElementById('videoTracks').value = 'auto'; }
+                    videoEl.play();
+                }
+                
+                updateStreamInfo();
+                updateTimer = setInterval(updateStreamInfo, 1000);
+            } catch (e) {
+                toggleSpinner(false);
+                onErrorEvent({detail: e});
             }
         }
 
+        // --- 轨道设置 (仅限 Shaka) ---
         function updateTrackMenus() {
-            if (window.hlsInstance) return; // 交由 HLS.js 控制时禁用原生轨道选择
-            
+            if (window.hlsInstance || window.dashInstance) return; 
             const videoSelect = document.getElementById('videoTracks');
             const audioSelect = document.getElementById('audioTracks');
             const textSelect = document.getElementById('textTracks');
@@ -726,16 +741,11 @@
             const tracks = player.getVariantTracks();
             const heightMap = new Map();
             tracks.forEach(t => {
-                if (t.height) {
-                    if (!heightMap.has(t.height) || heightMap.get(t.height).bandwidth < t.bandwidth) {
-                        heightMap.set(t.height, t); 
-                    }
-                }
+                if (t.height && (!heightMap.has(t.height) || heightMap.get(t.height).bandwidth < t.bandwidth)) heightMap.set(t.height, t); 
             });
 
             videoSelect.innerHTML = '<option value="auto">自动画质</option>';
-            const sortedTracks = Array.from(heightMap.values()).sort((a, b) => b.height - a.height);
-            sortedTracks.forEach(track => {
+            Array.from(heightMap.values()).sort((a, b) => b.height - a.height).forEach(track => {
                 const Mbps = (track.bandwidth / 1000000).toFixed(1);
                 videoSelect.add(new Option(`${track.height}p (${Mbps}M)`, track.id));
             });
@@ -754,143 +764,39 @@
         }
 
         function onVideoTrackChange() {
-            if (window.hlsInstance) return;
+            if (window.hlsInstance || window.dashInstance) return;
             const val = document.getElementById('videoTracks').value;
             if (val === 'auto') {
-                player.configure({ abr: { enabled: true } });
-                addLog("已开启自动画质", "success");
+                player.configure({ abr: { enabled: true } }); addLog("已开启自动画质", "success");
             } else {
                 player.configure({ abr: { enabled: false } });
                 const t = player.getVariantTracks().find(t => t.id == val);
                 if (t) { player.selectVariantTrack(t, true); addLog(`锁定画质: ${t.height}p`, "success"); }
             }
         }
-
-        function onAudioTrackChange() {
-            if(window.hlsInstance) return;
-            const lang = document.getElementById('audioTracks').value;
-            if(lang && lang !== 'auto') player.selectAudioLanguage(lang);
-        }
-
-        function onTextTrackChange() {
-            if(window.hlsInstance) return;
-            const val = document.getElementById('textTracks').value;
-            if (val === 'off') player.setTextTrackVisibility(false);
-            else {
-                const t = player.getTextTracks().find(t => t.id == val);
-                if (t) { player.selectTextTrack(t); player.setTextTrackVisibility(true); }
-            }
-        }
+        function onAudioTrackChange() { if(window.hlsInstance || window.dashInstance) return; const lang = document.getElementById('audioTracks').value; if(lang && lang !== 'auto') player.selectAudioLanguage(lang); }
+        function onTextTrackChange() { if(window.hlsInstance || window.dashInstance) return; const val = document.getElementById('textTracks').value; if (val === 'off') player.setTextTrackVisibility(false); else { const t = player.getTextTracks().find(t => t.id == val); if (t) { player.selectTextTrack(t); player.setTextTrackVisibility(true); } } }
 
         function updateStreamInfo() {
             const infoDiv = document.getElementById('streamInfo');
-            
-            // 兼容 HLS.js 的信息获取
             if (window.hlsInstance) {
                 const level = window.hlsInstance.levels[window.hlsInstance.currentLevel];
-                if (level) {
-                    infoDiv.innerHTML = `HLS 引擎: <span class="highlight">${level.width}x${level.height}</span> | <span class="highlight">${(level.bitrate / 1000).toFixed(0)} Kbps</span>`;
-                } else {
-                    infoDiv.innerHTML = `状态: HLS.js 实时解析中...`;
-                }
+                if (level) infoDiv.innerHTML = `HLS.js 引擎: <span class="highlight">${level.width}x${level.height}</span> | <span class="highlight">${(level.bitrate / 1000).toFixed(0)} Kbps</span>`;
                 return;
             }
-
+            if (window.dashInstance) {
+                const bitrate = window.dashInstance.getAverageAllowedBitrateFor('video');
+                infoDiv.innerHTML = `Dash.js 引擎: 平均速率 <span class="highlight">${(bitrate / 1000).toFixed(0)} Kbps</span>`;
+                return;
+            }
             if (!player) return;
             const activeTrack = player.getVariantTracks().find(t => t.active) || player.getVariantTracks()[0];
             if (activeTrack) {
                 const stats = player.getStats();
-                const actualWidth = stats.width || activeTrack.width || '?';
-                const actualHeight = stats.height || activeTrack.height || '?';
-                const vCodec = activeTrack.videoCodec || '?';
-                const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '?';
+                const vCodec = activeTrack.videoCodec || '?'; const vKbps = activeTrack.videoBandwidth ? (activeTrack.videoBandwidth / 1000).toFixed(0) : '?';
                 const aKbps = activeTrack.audioBandwidth ? (activeTrack.audioBandwidth / 1000).toFixed(0) : '?';
-
-                infoDiv.innerHTML = `视频: <span class="highlight">${actualWidth}x${actualHeight}</span> | ${vCodec} | <span class="highlight">${vKbps} Kbps</span><br>` +
+                infoDiv.innerHTML = `视频: <span class="highlight">${stats.width || activeTrack.width || '?'}x${stats.height || activeTrack.height || '?'}</span> | ${vCodec} | <span class="highlight">${vKbps} Kbps</span><br>` +
                                     `音频: <span class="highlight">${aKbps} Kbps</span>`;
-            }
-        }
-
-        async function loadAndPlay() {
-            const url = document.getElementById('streamUrl').value.trim();
-            const keyInput = document.getElementById('licenseKey').value.trim();
-            const forceHQ = document.getElementById('forceHQ').checked;
-            const videoEl = document.getElementById('videoPlayer');
-            
-            if (!url) { addLog("禁止操作: 流地址为空", "error"); return; }
-            
-            const isM3U8 = url.toLowerCase().includes('.m3u8');
-
-            if (updateTimer) clearInterval(updateTimer);
-
-            // 清理已有的 HLS.js 实例
-            if (window.hlsInstance) {
-                window.hlsInstance.destroy();
-                window.hlsInstance = null;
-            }
-
-            try {
-                toggleSpinner(true);
-                
-                // 👑 分流策略：m3u8 交给强悍的 hls.js
-                if (isM3U8 && typeof Hls !== 'undefined' && Hls.isSupported()) {
-                    await player.unload(); // 让 Shaka 释放视频控制权
-                    
-                    window.hlsInstance = new Hls({ maxBufferLength: 30, maxMaxBufferLength: 60 });
-                    window.hlsInstance.loadSource(url);
-                    window.hlsInstance.attachMedia(videoEl);
-                    
-                    window.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                        toggleSpinner(false);
-                        videoEl.play();
-                        addLog(`HLS.js 引擎接管播放成功`, "success");
-                        document.getElementById('videoTracks').innerHTML = '<option value="auto">HLS 原生画质</option>';
-                    });
-                    
-                    window.hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-                        if (data.fatal) {
-                            toggleSpinner(false);
-                            addLog(`HLS.js 致命错误: ${data.type}`, "error");
-                        }
-                    });
-                    
-                } else {
-                    // 非 M3U8（如 DASH）使用 Shaka Player
-                    let clearKeysConfig = {};
-                    if (keyInput) {
-                        const parts = keyInput.replace(/-/g, '').split(':');
-                        if (parts.length === 2) clearKeysConfig[parts[0]] = parts[1];
-                    }
-
-                    player.configure({ 
-                        drm: { clearKeys: Object.keys(clearKeysConfig).length > 0 ? clearKeysConfig : {} }, 
-                        abr: { enabled: true }
-                    });
-
-                    await player.load(url);
-                    toggleSpinner(false);
-                    addLog(`Shaka 引擎解析流加载成功`, "success");
-
-                    if (forceHQ) {
-                        const tracks = player.getVariantTracks();
-                        const highestTrack = tracks.filter(t => t.height).sort((a, b) => b.bandwidth - a.bandwidth)[0];
-                        if (highestTrack) {
-                            player.configure({ abr: { enabled: false } }); 
-                            player.selectVariantTrack(highestTrack, true);
-                            addLog(`自动锁定最高画质: ${highestTrack.height}p`, "success");
-                            setTimeout(() => { document.getElementById('videoTracks').value = highestTrack.id; }, 200);
-                        }
-                    } else {
-                        document.getElementById('videoTracks').value = 'auto';
-                    }
-                    videoEl.play();
-                }
-                
-                updateStreamInfo();
-                updateTimer = setInterval(updateStreamInfo, 1000);
-            } catch (e) {
-                toggleSpinner(false);
-                onErrorEvent({detail: e});
             }
         }
 
