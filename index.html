@@ -6,7 +6,6 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>">
     <title>PRO DASH & HLS Player</title>
     
-    <!-- 仅保留必备核心：mux.js(Shaka解析TS必须), hls.js(备用增强核心) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/7.1.0/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
@@ -35,8 +34,8 @@
         .player-section { flex: 1; display: flex; background-color: #000; position: relative; min-width: 0; }
         .video-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
         
-        .shaka-video-container { width: 100%; height: 100%; position: relative; }
-        video { width: 100%; height: 100%; display: block; object-fit: contain; }
+        .shaka-video-container { width: 100%; height: 100%; position: relative; outline: none; }
+        video { width: 100%; height: 100%; display: block; object-fit: contain; outline: none; }
 
         .player-section.web-fullscreen {
             position: fixed !important; top: 0; left: 0;
@@ -53,20 +52,19 @@
         }
 
         /* 👑 彻底修复控件：纯图标 + 悬浮提示 */
-        /* 1. 隐藏原生文字标签 */
         .shaka-button-label { display: none !important; } 
 
-        /* 2. 统一右下角控件为纯图标样式 */
         .shaka-resolution-button, 
         .shaka-playback-rate-button,
         .shaka-pip-button, 
         .shaka-fullscreen-button, 
+        .shaka-mute-button,
         .custom-web-fs-btn,
         .custom-refresh-btn {
             display: flex !important; 
             align-items: center !important; 
             justify-content: center !important;
-            width: 40px !important; /* 固定宽度，图标分布更均匀 */
+            width: 40px !important; 
             padding: 0 !important;
             height: 100%;
             background: transparent; border: none; cursor: pointer;
@@ -78,16 +76,17 @@
         .shaka-playback-rate-button:hover,
         .shaka-pip-button:hover, 
         .shaka-fullscreen-button:hover, 
+        .shaka-mute-button:hover,
         .custom-web-fs-btn:hover,
         .custom-refresh-btn:hover {
             color: var(--accent-color) !important;
         }
 
-        /* 3. 统一图标尺寸和对齐 */
         .shaka-resolution-button svg, 
         .shaka-playback-rate-button svg,
         .shaka-pip-button svg, 
         .shaka-fullscreen-button svg, 
+        .shaka-mute-button svg,
         .custom-web-fs-btn svg,
         .custom-refresh-btn svg {
             display: block !important; 
@@ -97,7 +96,6 @@
             fill: currentColor;
         }
 
-        /* 刷新按钮旋转动画 */
         .custom-refresh-btn svg { transition: transform 0.3s ease; }
         .custom-refresh-btn:hover svg { transform: rotate(90deg); }
 
@@ -218,7 +216,6 @@
             <div class="control-header" style="position: relative;">
                 <h2>调试中心</h2>
                 <span class="action-link" style="color:var(--error-color)" onclick="showClearConfirm()">[🗑️ 清除所有缓存]</span>
-                <!-- 内联气泡弹窗 -->
                 <div id="clearConfirmBox" class="confirm-bubble">
                     确认清空所有配置？ 
                     <span style="color:var(--error-color); cursor:pointer; font-weight:bold; margin:0 8px;" onclick="executeClearCache()">[确认]</span>
@@ -312,6 +309,25 @@
         // HLS.js 独立引擎实例
         window.hlsInstance = null;
 
+        // 👑 响应全局空格键播放/暂停
+        document.addEventListener('keydown', function(e) {
+            // 如果焦点在输入框中，不拦截空格键
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+            if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+            
+            if (e.code === 'Space') {
+                e.preventDefault(); // 防止网页向下滚动
+                const videoEl = document.getElementById('videoPlayer');
+                if (videoEl) {
+                    if (videoEl.paused) {
+                        videoEl.play();
+                    } else {
+                        videoEl.pause();
+                    }
+                }
+            }
+        });
+
         // --- 核心缓存逻辑 ---
         function saveConfig() {
             const config = {
@@ -333,7 +349,7 @@
                     const config = JSON.parse(cacheStr);
                     if(config.core) {
                         document.getElementById('playerCore').value = config.core;
-                        updateUIForCore(config.core); // 渲染时处理显隐
+                        updateUIForCore(config.core); 
                     }
                     if(config.importUrl) document.getElementById('urlImportInput').value = config.importUrl;
                     if(config.importText) document.getElementById('importArea').value = config.importText;
@@ -380,7 +396,7 @@
             saveConfig();
             updateUIForCore(core);
             addLog("核心引擎已切换，正在刷新以应用纯净环境...", "warning");
-            setTimeout(() => location.reload(), 300); // 重载页面应用新引擎
+            setTimeout(() => location.reload(), 300);
         }
 
         // --- UI 控制辅助 ---
@@ -429,7 +445,7 @@
 
         function clearLog(e) { if(e) e.stopPropagation(); document.getElementById('logContent').innerHTML = ''; }
 
-        // --- 👑 彻底重写的播放列表解析逻辑 (完美兼容TXT与M3U) ---
+        // --- 播放列表解析 ---
         async function fetchPlaylist() {
             const url = document.getElementById('urlImportInput').value.trim();
             if (!url) { addLog("请输入网络订阅链接", "warning"); return; }
@@ -476,14 +492,8 @@
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
                 if (!line) continue;
+                if (line.includes('#genre#')) { currentGroup = line.split(',')[0].trim(); continue; }
 
-                // 捕获 TXT 分组标签 (例如: 央视频道,#genre#)
-                if (line.includes('#genre#')) { 
-                    currentGroup = line.split(',')[0].trim(); 
-                    continue; 
-                }
-
-                // 捕获 M3U 标准 EXTINF 头部
                 if (line.startsWith('#EXTINF')) {
                     let nameMatch = line.match(/,(.+)$/);
                     currentItem.name = nameMatch ? nameMatch[1].trim() : '未命名频道';
@@ -491,43 +501,31 @@
                     currentItem.group = groupMatch ? groupMatch[1].trim() : currentGroup; 
                     let logoMatch = line.match(/tvg-logo="([^"]+)"/);
                     if (logoMatch) currentItem.logo = logoMatch[1].trim();
-                } 
-                // 捕获 KODI 格式的 DRM Key
-                else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
+                } else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
                     currentItem.key = line.split('=')[1].trim();
-                } 
-                // 捕获 M3U 标准格式里的 URL 行 (下一行通常是地址)
-                else if (line.startsWith('http')) {
+                } else if (line.startsWith('http')) {
                     currentItem.url = line;
-                    
-                    // 防护机制：如果没有识别到名字（说明没写 EXTINF），尝试取上一行文字
-                    if (!currentItem.name) {
-                        if (i > 0 && !lines[i-1].startsWith('#')) {
-                            currentItem.name = lines[i-1].split(',')[0].trim();
-                        } else {
-                            currentItem.name = '频道 ' + (playlistData.length + 1);
-                        }
+                    if (line.includes(',') && !line.startsWith('http')) {
+                       let parts = line.split(',');
+                       if(parts.length >= 2 && parts[1].startsWith('http')) { currentItem.name = parts[0].trim(); currentItem.url = parts[1].trim(); }
                     }
-                    if (!currentItem.group) currentItem.group = currentGroup;
-                    
-                    // 防护机制：有些订阅把 KODIPROP 写在 URL 下面，做一个向下探测
-                    if (i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
+                    if (!currentItem.name && i > 0 && !lines[i-1].startsWith('http') && !lines[i-1].startsWith('#')) {
+                        if(!lines[i-1].includes(',')) currentItem.name = lines[i-1];
+                    }
+                    if (!currentItem.key && i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
                         currentItem.key = lines[i+1]; i++; 
                     }
-                    
+                    if (!currentItem.name) currentItem.name = '频道 ' + (playlistData.length + 1);
+                    if (!currentItem.group) currentItem.group = currentGroup;
                     playlistData.push({...currentItem});
                     currentItem = { name: '', url: '', key: '', group: currentGroup, logo: '' };
-                } 
-                // 👑 捕获 TXT 逗号格式 (例如: CCTV-1,http://...)
-                else if (line.includes(',') && !line.startsWith('#')) {
+                } else if (line.includes(',') && !line.startsWith('#')) {
                     let parts = line.split(',');
-                    // 确保逗号后面的部分是以 http 开头，防止误伤普通文字逗号
                     if (parts.length >= 2 && parts[1].trim().startsWith('http')) {
                         currentItem.name = parts[0].trim();
                         currentItem.url = parts[1].trim();
                         currentItem.group = currentGroup;
                         playlistData.push({...currentItem});
-                        // 重置
                         currentItem = { name: '', url: '', key: '', group: currentGroup, logo: '' };
                     }
                 }
@@ -589,13 +587,12 @@
         async function initApp() {
             loadLocalCache();
 
-            // 👑 注册自定义刷新按钮 (纯图标 + hover 提示)
+            // 👑 注册纯图标刷新按钮
             class CustomRefresh extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
                     this.btn = document.createElement('button');
                     this.btn.className = 'custom-refresh-btn';
-                    this.btn.title = "刷新"; // 悬浮提示
                     this.btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>`;
                     this.btn.onclick = () => loadAndPlay();
                     parent.appendChild(this.btn);
@@ -604,13 +601,12 @@
             class CustomRefreshFactory { create(parent, controls) { return new CustomRefresh(parent, controls); } }
             shaka.ui.Controls.registerElement('custom_refresh', new CustomRefreshFactory());
 
-            // 👑 注册自定义网页全屏按钮 (纯图标 + hover 提示动态变化)
+            // 👑 注册纯图标网页全屏按钮
             class CustomWebFs extends shaka.ui.Element {
                 constructor(parent, controls) {
                     super(parent, controls);
                     this.btn = document.createElement('button');
-                    this.btn.className = 'custom-web-fs-btn'; // 用全新自定义类名，彻底剥离 Shaka 默认污染
-                    this.btn.title = "网页全屏"; // 初始悬浮提示
+                    this.btn.className = 'custom-web-fs-btn';
                     this.btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>`;
                     this.isWebFs = false;
                     
@@ -619,7 +615,7 @@
                         this.isWebFs = !this.isWebFs;
                         if (this.isWebFs) {
                             sec.classList.add('web-fullscreen');
-                            this.btn.title = '退出网页';
+                            this.btn.title = '退出网页全屏';
                         } else {
                             sec.classList.remove('web-fullscreen');
                             this.btn.title = '网页全屏';
@@ -639,12 +635,14 @@
                 player = new shaka.Player(video);
                 ui = new shaka.ui.Overlay(player, videoContainer, video);
                 
+                // 👑 配置 UI 布局，加入静音按钮 mute
                 ui.configure({
-                    singleClickForPlayAndPause: false, // 禁用单击暂停，防止误触
+                    singleClickForPlayAndPause: false,
                     doubleClickForFullscreen: true,
                     controlPanelElements: [
                         'play_pause',
-                        'custom_refresh',     
+                        'custom_refresh',
+                        'mute',               // 静音按钮添加在此处
                         'time_and_duration',  
                         'spacer',
                         'quality',            
@@ -655,20 +653,23 @@
                     ]
                 });
 
-                // 强制将 Shaka 自带的按钮注入中文悬浮提示
+                // 👑 为所有按钮强行注入中文 title (悬浮提示)
                 setTimeout(() => {
-                    const resBtn = document.querySelector('.shaka-resolution-button');
-                    if (resBtn) resBtn.title = "分辨率";
-                    
-                    const rateBtn = document.querySelector('.shaka-playback-rate-button');
-                    if (rateBtn) rateBtn.title = "倍速";
-                    
-                    const pipBtn = document.querySelector('.shaka-pip-button');
-                    if (pipBtn) pipBtn.title = "画中画";
-                    
-                    const fsBtn = document.querySelector('.shaka-fullscreen-button');
-                    if (fsBtn) fsBtn.title = "全屏";
-                }, 500); // 延迟执行以确保 UI 节点已挂载完毕
+                    const btnMap = {
+                        '.shaka-resolution-button': '分辨率',
+                        '.shaka-playback-rate-button': '倍速',
+                        '.shaka-pip-button': '画中画',
+                        '.shaka-fullscreen-button': '全屏',
+                        '.custom-web-fs-btn': '网页全屏',
+                        '.custom-refresh-btn': '刷新',
+                        '.shaka-mute-button': '静音 / 取消静音',
+                        '.shaka-play-pause-button': '播放 / 暂停'
+                    };
+                    for (const [selector, title] of Object.entries(btnMap)) {
+                        const btn = document.querySelector(selector);
+                        if (btn) btn.title = title;
+                    }
+                }, 500);
                 
                 player.addEventListener('error', onErrorEvent);
                 player.addEventListener('trackschanged', updateTrackMenus);
@@ -684,12 +685,9 @@
         function onErrorEvent(event) {
             const error = event.detail; toggleSpinner(false);
             if (error && error.code) {
-                // 👑 拦截 Shaka Player 最常见的 4018 错误并做中文说明
-                if (error.code === 4018) {
-                    addLog(`ShakaPlayer解析异常(4018): 该源的MPD结构(SegmentTemplate)不规范，请尝试使用HLS流`, "error");
-                }
+                if (error.code === 4018) addLog(`ShakaPlayer解析异常(4018): MPD结构不规范，请尝试使用HLS流`, "error");
                 else if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效`, "error");
-                else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: CORS 或 403`, "error");
+                else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: 浏览器 CORS(跨域)限制 或 403拒绝访问`, "error");
                 else addLog(`错误代码: ${error.code}`, "error");
             } else { addLog(`播放异常: ${error}`, "error"); }
         }
@@ -710,10 +708,8 @@
                 toggleSpinner(true);
                 
                 if (coreSelect === 'hlsjs') {
-                    // --- HLS.js 引擎 ---
                     if (typeof Hls === 'undefined' || !Hls.isSupported()) throw new Error("环境不支持 hls.js");
                     
-                    // 卸载 Shaka Player 避免冲突
                     await player.unload();
                     if(window.hlsInstance) window.hlsInstance.destroy();
                     
@@ -725,11 +721,18 @@
                         document.getElementById('videoTracks').innerHTML = '<option value="auto">HLS 原生画质</option>';
                     });
                     window.hlsInstance.on(Hls.Events.ERROR, function(event, data) {
-                        if (data.fatal) { toggleSpinner(false); addLog(`hls.js 致命错误: ${data.type}`, "error"); }
+                        if (data.fatal) { 
+                            toggleSpinner(false); 
+                            // 专门解释 hls.js 的跨域错误
+                            if(data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                                addLog(`hls.js 网络致命错误: 浏览器 CORS(跨域)限制 或 源地址失效`, "error");
+                            } else {
+                                addLog(`hls.js 致命错误: ${data.type}`, "error"); 
+                            }
+                        }
                     });
 
                 } else {
-                    // --- Shaka Player 引擎 (默认) ---
                     if(window.hlsInstance) {
                         window.hlsInstance.destroy();
                         window.hlsInstance = null;
@@ -741,18 +744,17 @@
                         if (parts.length === 2) clearKeysConfig[parts[0]] = parts[1];
                     }
                     
-                    // 👑 注入极致的 DASH 容错与防卡死配置 (解决直播流起播/换切片卡死问题)
                     player.configure({ 
                         drm: { clearKeys: Object.keys(clearKeysConfig).length > 0 ? clearKeysConfig : {} }, 
                         abr: { enabled: true },
                         streaming: {
-                            jumpLargeGaps: true, // 跳过断流间隙，防止直播一直转圈
+                            jumpLargeGaps: true, 
                             ignoreTextStreamFailures: true,
-                            retryParameters: { maxAttempts: 5, baseDelay: 1000 } // 切片重试机制
+                            retryParameters: { maxAttempts: 5, baseDelay: 1000 }
                         },
                         manifest: {
                             dash: {
-                                autoCorrectDrift: true, // 修正服务端和本地时间戳偏差
+                                autoCorrectDrift: true,
                                 ignoreMinBufferTime: true,
                                 ignoreSuggestedPresentationDelay: true,
                                 ignoreEmptyAdaptationSet: true
@@ -784,7 +786,6 @@
             }
         }
 
-        // --- 轨道设置 (仅限 Shaka) ---
         function updateTrackMenus() {
             if (window.hlsInstance) return; 
             const videoSelect = document.getElementById('videoTracks');
