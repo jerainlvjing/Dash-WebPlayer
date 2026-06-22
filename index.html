@@ -6,6 +6,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>">
     <title>PRO DASH & HLS Player</title>
     
+    <!-- 必备核心：mux.js(Shaka解析TS必须), hls.js(备用增强核心) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/7.1.0/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
@@ -217,6 +218,7 @@
             <div class="control-header" style="position: relative;">
                 <h2>调试中心</h2>
                 <span class="action-link" style="color:var(--error-color)" onclick="showClearConfirm()">[🗑️ 清除所有缓存]</span>
+                <!-- 内联气泡弹窗 -->
                 <div id="clearConfirmBox" class="confirm-bubble">
                     确认清空所有配置？ 
                     <span style="color:var(--error-color); cursor:pointer; font-weight:bold; margin:0 8px;" onclick="executeClearCache()">[确认]</span>
@@ -707,7 +709,23 @@
                         const parts = keyInput.replace(/-/g, '').split(':');
                         if (parts.length === 2) clearKeysConfig[parts[0]] = parts[1];
                     }
-                    player.configure({ drm: { clearKeys: Object.keys(clearKeysConfig).length > 0 ? clearKeysConfig : {} }, abr: { enabled: true }});
+                    
+                    // 👑 注入极致的 DASH 容错与防卡死配置
+                    player.configure({ 
+                        drm: { clearKeys: Object.keys(clearKeysConfig).length > 0 ? clearKeysConfig : {} }, 
+                        abr: { enabled: true },
+                        streaming: {
+                            jumpLargeGaps: true, // 极其重要：跳过断流间隙，防止直播一直转圈
+                            ignoreTextStreamFailures: true,
+                            retryParameters: { maxAttempts: 5, baseDelay: 1000 } // 增加 404 切片重试应对直播切片未就绪
+                        },
+                        manifest: {
+                            dash: {
+                                autoCorrectDrift: true, // 修正服务端和本地时间戳偏差
+                                ignoreMinBufferTime: true
+                            }
+                        }
+                    });
                     
                     await player.load(url);
                     toggleSpinner(false); addLog(`Shaka 引擎解析流加载成功`, "success");
