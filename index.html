@@ -6,7 +6,7 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>">
     <title>PRO DASH & HLS Player</title>
     
-    <!-- 必备核心：mux.js(Shaka解析TS必须), hls.js(备用增强核心) -->
+    <!-- 仅保留必备核心：mux.js(Shaka解析TS必须), hls.js(备用增强核心) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mux.js/7.1.0/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
@@ -429,7 +429,7 @@
 
         function clearLog(e) { if(e) e.stopPropagation(); document.getElementById('logContent').innerHTML = ''; }
 
-        // --- 播放列表解析 ---
+        // --- 👑 彻底重写的播放列表解析逻辑 (完美兼容TXT与M3U) ---
         async function fetchPlaylist() {
             const url = document.getElementById('urlImportInput').value.trim();
             if (!url) { addLog("请输入网络订阅链接", "warning"); return; }
@@ -476,8 +476,14 @@
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i];
                 if (!line) continue;
-                if (line.includes('#genre#')) { currentGroup = line.split(',')[0].trim(); continue; }
 
+                // 捕获 TXT 分组标签 (例如: 央视频道,#genre#)
+                if (line.includes('#genre#')) { 
+                    currentGroup = line.split(',')[0].trim(); 
+                    continue; 
+                }
+
+                // 捕获 M3U 标准 EXTINF 头部
                 if (line.startsWith('#EXTINF')) {
                     let nameMatch = line.match(/,(.+)$/);
                     currentItem.name = nameMatch ? nameMatch[1].trim() : '未命名频道';
@@ -485,24 +491,45 @@
                     currentItem.group = groupMatch ? groupMatch[1].trim() : currentGroup; 
                     let logoMatch = line.match(/tvg-logo="([^"]+)"/);
                     if (logoMatch) currentItem.logo = logoMatch[1].trim();
-                } else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
+                } 
+                // 捕获 KODI 格式的 DRM Key
+                else if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
                     currentItem.key = line.split('=')[1].trim();
-                } else if (line.startsWith('http')) {
+                } 
+                // 捕获 M3U 标准格式里的 URL 行 (下一行通常是地址)
+                else if (line.startsWith('http')) {
                     currentItem.url = line;
-                    if (line.includes(',') && !line.startsWith('http')) {
-                       let parts = line.split(',');
-                       if(parts.length >= 2 && parts[1].startsWith('http')) { currentItem.name = parts[0].trim(); currentItem.url = parts[1].trim(); }
+                    
+                    // 防护机制：如果没有识别到名字（说明没写 EXTINF），尝试取上一行文字
+                    if (!currentItem.name) {
+                        if (i > 0 && !lines[i-1].startsWith('#')) {
+                            currentItem.name = lines[i-1].split(',')[0].trim();
+                        } else {
+                            currentItem.name = '频道 ' + (playlistData.length + 1);
+                        }
                     }
-                    if (!currentItem.name && i > 0 && !lines[i-1].startsWith('http') && !lines[i-1].startsWith('#')) {
-                        if(!lines[i-1].includes(',')) currentItem.name = lines[i-1];
-                    }
-                    if (!currentItem.key && i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
+                    if (!currentItem.group) currentItem.group = currentGroup;
+                    
+                    // 防护机制：有些订阅把 KODIPROP 写在 URL 下面，做一个向下探测
+                    if (i + 1 < lines.length && /^[a-fA-F0-9]+:[a-fA-F0-9]+$/.test(lines[i+1])) {
                         currentItem.key = lines[i+1]; i++; 
                     }
-                    if (!currentItem.name) currentItem.name = '频道 ' + (playlistData.length + 1);
-                    if (!currentItem.group) currentItem.group = currentGroup;
+                    
                     playlistData.push({...currentItem});
                     currentItem = { name: '', url: '', key: '', group: currentGroup, logo: '' };
+                } 
+                // 👑 捕获 TXT 逗号格式 (例如: CCTV-1,http://...)
+                else if (line.includes(',') && !line.startsWith('#')) {
+                    let parts = line.split(',');
+                    // 确保逗号后面的部分是以 http 开头，防止误伤普通文字逗号
+                    if (parts.length >= 2 && parts[1].trim().startsWith('http')) {
+                        currentItem.name = parts[0].trim();
+                        currentItem.url = parts[1].trim();
+                        currentItem.group = currentGroup;
+                        playlistData.push({...currentItem});
+                        // 重置
+                        currentItem = { name: '', url: '', key: '', group: currentGroup, logo: '' };
+                    }
                 }
             }
             renderPlaylist();
@@ -582,7 +609,7 @@
                 constructor(parent, controls) {
                     super(parent, controls);
                     this.btn = document.createElement('button');
-                    this.btn.className = 'shaka-button custom-web-fs-btn';
+                    this.btn.className = 'custom-web-fs-btn'; // 用全新自定义类名，彻底剥离 Shaka 默认污染
                     this.btn.title = "网页全屏"; // 初始悬浮提示
                     this.btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>`;
                     this.isWebFs = false;
@@ -657,7 +684,11 @@
         function onErrorEvent(event) {
             const error = event.detail; toggleSpinner(false);
             if (error && error.code) {
-                if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效`, "error");
+                // 👑 拦截 Shaka Player 最常见的 4018 错误并做中文说明
+                if (error.code === 4018) {
+                    addLog(`ShakaPlayer解析异常(4018): 该源的MPD结构(SegmentTemplate)不规范，请尝试使用HLS流`, "error");
+                }
+                else if (error.code === 6001 || error.code === 6006) addLog(`解密失败: 密钥无效`, "error");
                 else if (error.code === 1002 || error.code === 1001) addLog(`网络拦截: CORS 或 403`, "error");
                 else addLog(`错误代码: ${error.code}`, "error");
             } else { addLog(`播放异常: ${error}`, "error"); }
@@ -710,19 +741,21 @@
                         if (parts.length === 2) clearKeysConfig[parts[0]] = parts[1];
                     }
                     
-                    // 👑 注入极致的 DASH 容错与防卡死配置
+                    // 👑 注入极致的 DASH 容错与防卡死配置 (解决直播流起播/换切片卡死问题)
                     player.configure({ 
                         drm: { clearKeys: Object.keys(clearKeysConfig).length > 0 ? clearKeysConfig : {} }, 
                         abr: { enabled: true },
                         streaming: {
-                            jumpLargeGaps: true, // 极其重要：跳过断流间隙，防止直播一直转圈
+                            jumpLargeGaps: true, // 跳过断流间隙，防止直播一直转圈
                             ignoreTextStreamFailures: true,
-                            retryParameters: { maxAttempts: 5, baseDelay: 1000 } // 增加 404 切片重试应对直播切片未就绪
+                            retryParameters: { maxAttempts: 5, baseDelay: 1000 } // 切片重试机制
                         },
                         manifest: {
                             dash: {
                                 autoCorrectDrift: true, // 修正服务端和本地时间戳偏差
-                                ignoreMinBufferTime: true
+                                ignoreMinBufferTime: true,
+                                ignoreSuggestedPresentationDelay: true,
+                                ignoreEmptyAdaptationSet: true
                             }
                         }
                     });
